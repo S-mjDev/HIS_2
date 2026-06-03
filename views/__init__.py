@@ -1,0 +1,6 @@
+from views.login import create_login_window
+from views.dashboard import build_dashboard_page
+from views.user_registration import build_user_registration_page
+from views.user_management import build_user_management_page
+from views.patient_registration import build_patient_registration_page
+from views.search_patient import build_search_patient_page

@@ -1,0 +1,108 @@
+import os
+import sys
+from tkinter import *
+from tkinter import messagebox
+from utils.theme import T, FONT, apply_styles
+from utils.widgets import mk_entry
+
+
+def resource_path(relative_path):
+    """Get absolute path to resource, supporting PyInstaller bundles."""
+    if hasattr(sys, '_MEIPASS'):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
+
+def create_login_window(on_login_success):
+    """Build and display the login window. Calls on_login_success(user_data) on success."""
+    from models.user_database import UserDatabase
+
+    login_window = Tk()
+    login_window.title("Hospital Information System — Login")
+    login_window.geometry("480x540")
+    login_window.resizable(False, False)
+    login_window.eval("tk::PlaceWindow . center")
+    login_window.configure(bg=T["bg"])
+
+    try:
+        login_window.iconbitmap(resource_path("qphn.ico"))
+    except Exception:
+        try:
+            icon = PhotoImage(file=resource_path("qphn.jpg"))
+            login_window.iconphoto(True, icon)
+        except Exception:
+            pass
+
+    apply_styles()
+
+    # Subtle background grid
+    bg_canvas = Canvas(login_window, bg=T["bg"], highlightthickness=0)
+    bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+    for i in range(0, 480, 32):
+        bg_canvas.create_line(i, 0, i, 540, fill=T["border"], width=1)
+    for j in range(0, 540, 32):
+        bg_canvas.create_line(0, j, 480, j, fill=T["border"], width=1)
+
+    # Card
+    card = Frame(login_window, bg=T["panel"],
+                 highlightthickness=1, highlightbackground=T["border2"])
+    card.place(relx=0.5, rely=0.5, anchor=CENTER, width=380, height=460)
+
+    Frame(card, bg=T["accent"], height=4).pack(fill=X)
+
+    logo_row = Frame(card, bg=T["panel"])
+    logo_row.pack(fill=X, padx=36, pady=(28, 0))
+    badge = Frame(logo_row, bg=T["accent"], width=46, height=46)
+    badge.pack_propagate(False)
+    badge.pack(anchor=W)
+    Label(badge, text="H", font=("Georgia", 20, "bold"),
+          bg=T["accent"], fg=T["white"]).place(relx=0.5, rely=0.5, anchor=CENTER)
+
+    Label(card, text="Hospital Information System",
+          font=FONT["h2"], bg=T["panel"], fg=T["text"]).pack(anchor=W, padx=36, pady=(10, 2))
+    Label(card, text="Sign in to your account",
+          font=FONT["body"], bg=T["panel"], fg=T["muted"]).pack(anchor=W, padx=36)
+
+    Frame(card, bg=T["border"], height=1).pack(fill=X, padx=36, pady=(16, 0))
+
+    form = Frame(card, bg=T["panel"])
+    form.pack(fill=X, padx=36, pady=(16, 0))
+
+    Label(form, text="USERNAME", font=FONT["tag"],
+          bg=T["panel"], fg=T["muted"]).pack(anchor=W, pady=(0, 4))
+    username_entry = mk_entry(form, width=36)
+    username_entry.pack(fill=X, ipady=9, pady=(0, 14))
+    username_entry.focus()
+
+    Label(form, text="PASSWORD", font=FONT["tag"],
+          bg=T["panel"], fg=T["muted"]).pack(anchor=W, pady=(0, 4))
+    password_entry = mk_entry(form, width=36, show="●")
+    password_entry.pack(fill=X, ipady=9, pady=(0, 22))
+
+    def login():
+        username = username_entry.get().strip()
+        password = password_entry.get().strip()
+        if not username or not password:
+            messagebox.showerror("Error", "Please enter both username and password")
+            return
+        user_db = UserDatabase()
+        success, user_data = user_db.authenticate(username, password)
+        if success:
+            login_window.destroy()
+            on_login_success(user_data)
+        else:
+            messagebox.showerror("Login Failed", "Invalid username or password")
+
+    Button(form, text="SIGN IN", command=login,
+           bg=T["accent"], fg=T["white"], font=("Calibri", 11, "bold"),
+           activebackground=T["accent_h"], activeforeground=T["white"],
+           bd=0, relief=FLAT, pady=12, cursor="hand2").pack(fill=X)
+
+    login_window.bind("<Return>", lambda e: login())
+
+    Label(card, text="Secure  ·  Role-Based Access Control",
+          font=FONT["small"], bg=T["panel"], fg=T["border2"]).pack(side=BOTTOM, pady=18)
+
+    login_window.mainloop()
