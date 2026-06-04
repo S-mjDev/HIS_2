@@ -1,2 +1,5 @@
 mysql-connector-python
 tkcalendar
+
+
+#  pyinstaller --onefile --noconsole --icon=qphn.ico --add-data "qphn.ico:." --name=Qphn main.py
