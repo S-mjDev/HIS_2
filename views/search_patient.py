@@ -99,119 +99,33 @@ def build_search_patient_page(parent, page_refreshers):
     results_tree = ttk.Treeview(rf, columns=columns, show="headings", height=7)
     for col in columns:
         results_tree.heading(col, text=col)
-    results_tree.column("ID",            width=95,  anchor=W,      minwidth=70)
-    results_tree.column("Name",          width=175, anchor=W,      minwidth=100)
+    results_tree.column("ID",            width=95,  anchor=CENTER, minwidth=70)
+    results_tree.column("Name",          width=175, anchor=CENTER, minwidth=100)
     results_tree.column("Age",           width=50,  anchor=CENTER, minwidth=35)
     results_tree.column("Gender",        width=70,  anchor=CENTER, minwidth=50)
     results_tree.column("Birth Date",    width=95,  anchor=CENTER, minwidth=70)
-    results_tree.column("Barangay",      width=120, anchor=W,      minwidth=80)
-    results_tree.column("Municipality",  width=110, anchor=W,      minwidth=70)
-    results_tree.column("Province",      width=110, anchor=W,      minwidth=70)
-    results_tree.column("Registered",    width=130, anchor=W,      minwidth=80)
+    results_tree.column("Barangay",      width=120, anchor=CENTER, minwidth=80)
+    results_tree.column("Municipality",  width=110, anchor=CENTER, minwidth=70)
+    results_tree.column("Province",      width=110, anchor=CENTER, minwidth=70)
+    results_tree.column("Registered",    width=130, anchor=CENTER, minwidth=80)
     results_tree.pack(fill=BOTH, expand=True)
 
-    # ── Edit panel ────────────────────────────────────────────
-    edit_card = Frame(frame, bg=T["panel"],
-                      highlightthickness=1, highlightbackground=T["border"])
-    edit_card.pack(fill=X, padx=24, pady=(10, 16))
-    edit_card.columnconfigure(0, weight=1)
+    # ── Selected patient actions ───────────────────────────────
+    action_card = Frame(frame, bg=T["panel"],
+                        highlightthickness=1, highlightbackground=T["border"])
+    action_card.pack(fill=X, padx=24, pady=(10, 16))
+    action_card.columnconfigure(0, weight=1)
 
-    section_label(edit_card, "Edit Selected Patient")
-
-    edit_canvas = Canvas(edit_card, bg=T["panel"], highlightthickness=0, height=260)
-    edit_sb = ttk.Scrollbar(edit_card, orient=VERTICAL, command=edit_canvas.yview)
-    edit_sb.pack(side=RIGHT, fill=Y, padx=(0, 4), pady=(0, 8))
-    edit_canvas.pack(side=LEFT, fill=BOTH, expand=True, padx=(4, 0), pady=(0, 8))
-    edit_canvas.configure(yscrollcommand=edit_sb.set)
-
-    edit_frame = Frame(edit_canvas, bg=T["panel"])
-    edit_frame_id = edit_canvas.create_window((0, 0), window=edit_frame, anchor="nw")
-
-    def _edit_resize(e):
-        edit_canvas.configure(scrollregion=edit_canvas.bbox("all"))
-    def _edit_canvas_resize(e):
-        edit_canvas.itemconfig(edit_frame_id, width=e.width)
-    edit_frame.bind("<Configure>", _edit_resize)
-    edit_canvas.bind("<Configure>", _edit_canvas_resize)
-    edit_canvas.bind("<Enter>", lambda e: edit_canvas.bind_all(
-        "<MouseWheel>", lambda ev: edit_canvas.yview_scroll(int(-1*(ev.delta/120)), "units")))
-    edit_canvas.bind("<Leave>", lambda e: edit_canvas.unbind_all("<MouseWheel>"))
-
-    for ci in (1, 3, 5, 7):
-        edit_frame.columnconfigure(ci, weight=1)
-
-    def ef(label, row, col=0, combo_var=None, combo_vals=None, readonly=False, date=False):
-        Label(edit_frame, text=label.upper(), font=FONT["tag"],
-              bg=T["panel"], fg=T["muted"]).grid(
-            row=row*2, column=col, sticky=W, pady=(8, 3),
-            padx=(0 if col == 0 else 14, 6))
-        if combo_var and combo_vals:
-            w = mk_combo(edit_frame, combo_var, combo_vals, width=18)
-            w.grid(row=row*2+1, column=col, sticky=EW, ipady=5,
-                   padx=(0 if col == 0 else 14, 14))
-        elif date and DateEntry:
-            w = DateEntry(edit_frame, width=18, date_pattern="yyyy-mm-dd", font=FONT["body"],
-                          background=T["accent"], foreground=T["white"],
-                          headersbackground=T["accent"])
-            w.grid(row=row*2+1, column=col, sticky=EW,
-                   padx=(0 if col == 0 else 14, 14))
-        else:
-            w = mk_entry(edit_frame, width=20, readonly=readonly)
-            if readonly:
-                w.config(textvariable=selected_patient_id)
-            w.grid(row=row*2+1, column=col, sticky=EW, ipady=6,
-                   padx=(0 if col == 0 else 14, 14))
-            if not readonly and not date:
-                w.bind("<KeyRelease>", lambda e, x=w: uppercase_entry_widget(x))
-            if date and not DateEntry:
-                w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
-        return w
-
-    patient_id_entry     = ef("Patient ID",      0, 0, readonly=True)
-    edit_first_name      = ef("First Name",      0, 2)
-    edit_middle_name     = ef("Middle Name",     0, 4)
-    edit_last_name       = ef("Last Name",       0, 6)
-    edit_age             = ef("Age",             1, 0)
-    edit_gender_var      = StringVar(value="MALE")
-    ef("Gender",         1, 2, combo_var=edit_gender_var, combo_vals=["MALE", "FEMALE", "OTHER"])
-    edit_birth_date      = ef("Birth Date",      1, 4, date=True)
-    edit_birth_place     = ef("Birth Place",     1, 6)
-    edit_civil_status_var = StringVar(value="SINGLE")
-    ef("Civil Status",   2, 0, combo_var=edit_civil_status_var,
-       combo_vals=["SINGLE", "MARRIED", "WIDOWED", "DIVORCED"])
-    edit_nationality     = ef("Nationality",     2, 2)
-    edit_phone           = ef("Phone",           2, 4)
-    edit_email           = ef("Email",           2, 6)
-    edit_barangay        = ef("Barangay",        3, 0)
-    edit_municipality    = ef("Municipality",    3, 2)
-    edit_municipality.insert(0, "CATANAUAN")
-    edit_province        = ef("Province",        3, 4)
-    edit_province.insert(0, "QUEZON")
-    edit_medical_history = ef("Medical History", 4, 0)
-
-    registered_by_label = Label(edit_frame, text="Registered By: N/A",
-                                font=FONT["small"], bg=T["panel"], fg=T["muted"])
-    registered_by_label.grid(row=8, column=0, columnspan=8, sticky=W, pady=(6, 0))
+    section_label(action_card, "Selected Patient Actions")
+    selected_patient_label = Label(action_card, text="Selected patient: None",
+                                    font=FONT["small"], bg=T["panel"], fg=T["muted"])
+    selected_patient_label.pack(anchor=W, padx=20, pady=(0, 8))
 
     def clear_edit_form():
         selected_patient_id.set("")
-        for w in [edit_first_name, edit_middle_name, edit_last_name, edit_age,
-                  edit_birth_place, edit_nationality, edit_phone, edit_email,
-                  edit_barangay, edit_municipality, edit_province, edit_medical_history]:
-            try:
-                w.config(state="normal")
-            except Exception:
-                pass
-            w.delete(0, END)
-        edit_municipality.insert(0, "CATANAUAN")
-        edit_province.insert(0, "QUEZON")
-        edit_gender_var.set("MALE")
-        if hasattr(edit_birth_date, "set_date"):
-            edit_birth_date.set_date(datetime.today())
-        else:
-            edit_birth_date.delete(0, END)
-        edit_civil_status_var.set("SINGLE")
-        registered_by_label.config(text="Registered By: N/A")
+        selected_patient_label.config(text="Selected patient: None")
+        for item in results_tree.selection():
+            results_tree.selection_remove(item)
 
     def load_results(patients):
         for item in results_tree.get_children():
@@ -276,43 +190,6 @@ def build_search_patient_page(parent, page_refreshers):
         clear_edit_form()
         results_lbl.config(text="RESULTS")
 
-    def load_selected_patient(patient_data):
-        clear_edit_form()
-        selected_patient_id.set(patient_data.get("patient_id", ""))
-        for w, key in [
-            (edit_first_name,      "first_name"),
-            (edit_middle_name,     "middle_name"),
-            (edit_last_name,       "last_name"),
-            (edit_age,             "age"),
-            (edit_birth_place,     "birth_place"),
-            (edit_phone,           "phone"),
-            (edit_email,           "email"),
-            (edit_barangay,        "barangay"),
-            (edit_municipality,    "municipality"),
-            (edit_province,        "province"),
-            (edit_medical_history, "medical_history"),
-            (edit_nationality,     "nationality"),
-        ]:
-            try:
-                w.config(state="normal")
-            except Exception:
-                pass
-            w.delete(0, END)
-            w.insert(0, patient_data.get(key, "") or "")
-        edit_gender_var.set((patient_data.get("gender") or "MALE").upper())
-        edit_civil_status_var.set((patient_data.get("civil_status") or "SINGLE").upper())
-        if hasattr(edit_birth_date, "set_date"):
-            try:
-                edit_birth_date.set_date(patient_data.get("birth_date") or datetime.today())
-            except Exception:
-                edit_birth_date.delete(0, END)
-                edit_birth_date.insert(0, patient_data.get("birth_date", "") or "")
-        else:
-            edit_birth_date.delete(0, END)
-            edit_birth_date.insert(0, patient_data.get("birth_date", "") or "")
-        registered_by_label.config(
-            text=f"Registered By: {(patient_data.get('registered_by') or 'N/A').upper()}")
-
     def on_tree_select(event):
         sel = results_tree.selection()
         if not sel:
@@ -321,9 +198,8 @@ def build_search_patient_page(parent, page_refreshers):
         pid = item["values"][0]
         if pid == "No results found":
             return
-        pd2 = db.get_patient(pid)
-        if pd2:
-            load_selected_patient(pd2)
+        selected_patient_id.set(pid)
+        selected_patient_label.config(text=f"Selected patient: {pid}")
 
     def open_update_popup():
         pid = selected_patient_id.get()
@@ -353,7 +229,7 @@ def build_search_patient_page(parent, page_refreshers):
         header.pack(fill=X, padx=16, pady=(12, 6))
         Label(header, text=f"Update Patient {pid}", font=("Arial", 16, "bold"),
               bg=T["bg"], fg=T["text"]).pack(anchor=W)
-        Label(header, text="Edit patient details in a dedicated popup window.",
+        Label(header, text="Edit patient details.",
               font=FONT["small"], bg=T["bg"], fg=T["muted"]).pack(anchor=W, pady=(2, 0))
 
         body = Frame(popup, bg=T["panel"], highlightthickness=1,
@@ -472,7 +348,7 @@ def build_search_patient_page(parent, page_refreshers):
 
             if db.update_patient(pid, updated_data):
                 messagebox.showinfo("Success", f"Patient {pid} updated successfully", parent=popup)
-                load_selected_patient(db.get_patient(pid))
+                selected_patient_label.config(text=f"Selected patient: {pid}")
                 if search_entry.get().strip():
                     search_patient()
                 else:
@@ -514,11 +390,11 @@ def build_search_patient_page(parent, page_refreshers):
 
     results_tree.bind("<<TreeviewSelect>>", on_tree_select)
 
-    af = Frame(edit_card, bg=T["panel"])
+    af = Frame(action_card, bg=T["panel"])
     af.pack(fill=X, padx=20, pady=(0, 16))
     mk_btn(af, "Update Record", open_update_popup, width=16).pack(side=LEFT, padx=(0, 8))
     mk_btn(af, "Delete Record", delete_patient, danger=True, width=14).pack(side=LEFT, padx=(0, 8))
-    mk_btn(af, "Clear Form",    clear_edit_form, secondary=True, width=12).pack(side=LEFT)
+    mk_btn(af, "Clear Selection", clear_edit_form, secondary=True, width=14).pack(side=LEFT)
 
     load_results({})
     return outer

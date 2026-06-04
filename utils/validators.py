@@ -24,9 +24,9 @@ def validate_age(age):
 
 
 def validate_date(date_text):
-    """Validate a date string in YYYY-MM-DD format."""
+    """Validate a date string in MM-DD-YYYY format."""
     try:
-        datetime.strptime(date_text, "%Y-%m-%d")
+        datetime.strptime(date_text, "%m-%d-%Y")
         return True
     except ValueError:
         return False
@@ -45,14 +45,14 @@ def validate_password(password):
 
 
 def format_birthdate_entry(entry_widget):
-    """Automatically format birth date input with hyphens (YYYY-MM-DD)."""
+    """Automatically format birth date input with hyphens (MM-DD-YYYY)."""
     current = entry_widget.get()
     digits = re.sub(r'[^0-9]', '', current)
     formatted = digits
+    if len(digits) > 2:
+        formatted = digits[:2] + '-' + digits[2:]
     if len(digits) > 4:
-        formatted = digits[:4] + '-' + digits[4:]
-    if len(digits) > 6:
-        formatted = digits[:4] + '-' + digits[4:6] + '-' + digits[6:8]
+        formatted = digits[:2] + '-' + digits[2:4] + '-' + digits[4:8]
     formatted = formatted[:10]
 
     if formatted != current:

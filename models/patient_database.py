@@ -1,5 +1,15 @@
+import os
+import sys
+from datetime import datetime
 from mysql.connector import Error
-from models.database import DatabaseConnection
+
+try:
+    from models.database import DatabaseConnection
+except ModuleNotFoundError:
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if ROOT_DIR not in sys.path:
+        sys.path.insert(0, ROOT_DIR)
+    from models.database import DatabaseConnection
 
 
 class PatientDatabase:
@@ -29,6 +39,26 @@ class PatientDatabase:
 
         return str(next_id)
 
+    def _normalize_birth_date(self, date_text):
+        """Convert MM-DD-YYYY input into YYYY-MM-DD for SQL storage."""
+        if not date_text:
+            return None
+        try:
+            return datetime.strptime(date_text, "%m-%d-%Y").strftime("%Y-%m-%d")
+        except ValueError:
+            return None
+
+    def _format_birth_date_for_output(self, date_value):
+        """Convert stored SQL date into MM-DD-YYYY for display."""
+        if not date_value:
+            return None
+        if isinstance(date_value, str):
+            try:
+                date_value = datetime.strptime(date_value, "%Y-%m-%d")
+            except ValueError:
+                return str(date_value)
+        return date_value.strftime("%m-%d-%Y")
+
     def add_patient(self, patient_id, data):
         """Add a new patient to the database."""
         insert_query = """
@@ -37,7 +67,7 @@ class PatientDatabase:
             phone, email, barangay, municipality, province, medical_history, registration_date)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
-        birth_date_value = data.get('birth_date') or None
+        birth_date_value = self._normalize_birth_date(data.get('birth_date'))
         try:
             self.db.execute_query(insert_query, (
                 patient_id,
@@ -74,7 +104,7 @@ class PatientDatabase:
             'last_name': row[4],
             'age': row[5],
             'gender': row[6],
-            'birth_date': str(row[7]) if row[7] else None,
+            'birth_date': self._format_birth_date_for_output(row[7]),
             'birth_place': row[8],
             'civil_status': row[9],
             'nationality': row[10],
@@ -145,6 +175,7 @@ class PatientDatabase:
             "phone = %s, email = %s, barangay = %s, municipality = %s, province = %s, "
             "medical_history = %s WHERE patient_id = %s"
         )
+        birth_date_value = self._normalize_birth_date(data.get('birth_date'))
         try:
             self.db.execute_query(query, (
                 data.get('first_name', ''),
@@ -152,7 +183,7 @@ class PatientDatabase:
                 data.get('last_name', ''),
                 data.get('age', ''),
                 data.get('gender', ''),
-                data.get('birth_date') or None,
+                birth_date_value,
                 data.get('birth_place', ''),
                 data.get('civil_status', ''),
                 data.get('nationality', ''),
@@ -194,8 +225,9 @@ class PatientDatabase:
         params = []
 
         if data.get('first_name') and data.get('last_name') and data.get('birth_date'):
+            normalized_birth_date = self._normalize_birth_date(data['birth_date'])
             conditions.append("(first_name = %s AND last_name = %s AND birth_date <=> %s)")
-            params.extend([data['first_name'], data['last_name'], data['birth_date']])
+            params.extend([data['first_name'], data['last_name'], normalized_birth_date])
 
         if not conditions:
             return False

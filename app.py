@@ -2,6 +2,7 @@ import os
 import sys
 from tkinter import *
 from utils.theme import T, FONT, apply_styles
+from utils.resources import get_resource_path, set_window_icon
 from models.user_database import UserDatabase
 from views.dashboard import build_dashboard_page
 from views.user_registration import build_user_registration_page
@@ -16,15 +17,6 @@ page_container = None
 pages          = {}
 page_refreshers = {}
 _shared_user_db = None
-
-
-def resource_path(relative_path):
-    """Get absolute path to resource, supporting PyInstaller bundles."""
-    if hasattr(sys, '_MEIPASS'):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
 
 
 def get_user_db():
@@ -96,16 +88,7 @@ def create_main_application(user_data):
     window.minsize(960, 640)
     window.configure(bg=T["bg"])
     window.resizable(True, True)
-
-    try:
-        window.iconbitmap(resource_path("qphn.ico"))
-    except Exception:
-        try:
-            icon = PhotoImage(file=resource_path("qphn.jpg"))
-            window.iconphoto(True, icon)
-        except Exception:
-            pass
-
+    set_window_icon(window, "qphn.ico")
     apply_styles()
 
     # ── Top bar ───────────────────────────────────────────
