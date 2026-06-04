@@ -1,10 +1,17 @@
+import os
+import sys
 from tkinter import *
 from tkinter import ttk, messagebox
 from datetime import datetime
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 from utils.theme import T, FONT
 from utils.widgets import mk_entry, mk_btn, mk_combo, page_header, section_label
 from utils.validators import (
-    validate_age, validate_phone, validate_email, validate_date,
+    validate_email, validate_date,
     uppercase_entry_widget, format_birthdate_entry
 )
 from models.patient_database import PatientDatabase
@@ -49,7 +56,7 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     id_card.pack(fill=X, pady=(0, 14))
     id_inner = Frame(id_card, bg=T["panel"])
     id_inner.pack(fill=X, padx=20, pady=12)
-    Label(id_inner, text="AUTO-ASSIGNED PATIENT ID",
+    Label(id_inner, text="ASSIGNED PATIENT ID",
           font=FONT["tag"], bg=T["panel"], fg=T["muted"]).pack(side=LEFT, padx=(0, 16))
     patient_id_label = Label(id_inner, text="",
                              font=FONT["mono"],
@@ -80,18 +87,19 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=6,
                    padx=(0 if c == 0 else 16, 16))
         elif date and DateEntry:
-            w = DateEntry(grid, width=24, date_pattern="yyyy-mm-dd", font=FONT["body"],
+            w = DateEntry(grid, width=24, date_pattern="mm-dd-yyyy", font=FONT["body"],
                           background=T["accent"], foreground=T["white"],
                           headersbackground=T["accent"])
             w.grid(row=row*2+1, column=c, sticky=EW,
                    padx=(0 if c == 0 else 16, 16))
+            w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
         else:
             w = mk_entry(grid, width=24, show=show)
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=7,
                    padx=(0 if c == 0 else 16, 16))
             if not show and not date:
                 w.bind("<KeyRelease>", lambda e, x=w: uppercase_entry_widget(x))
-            if date and not DateEntry:
+            if date:
                 w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
         return w
 
@@ -143,18 +151,12 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
         if not first_name or not last_name:
             messagebox.showerror("Error", "First Name and Last Name are required")
             return
-        if not validate_age(age_entry.get()):
-            messagebox.showerror("Error", "Please enter a valid age (1-149)")
-            return
-        if not validate_phone(phone_entry.get()):
-            messagebox.showerror("Error", "Please enter a valid phone number")
-            return
         if email_entry.get().strip() and not validate_email(email_entry.get()):
             messagebox.showerror("Error", "Please enter a valid email address")
             return
         birth_date_value = birth_date_entry.get().strip()
         if birth_date_value and not validate_date(birth_date_value):
-            messagebox.showerror("Error", "Birth date must be in YYYY-MM-DD format")
+            messagebox.showerror("Error", "Birth date must be in MM-DD-YYYY format")
             return
 
         patient_data = {
@@ -171,7 +173,7 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
             "province":      province_entry.get().strip().upper(),
             "registered_by": (user_data.get("username") if user_data else "").upper(),
             "phone":         phone_entry.get().strip().upper(),
-            "email":         email_entry.get().strip().upper(),
+            "email":         email_entry.get().strip(),
             "barangay":      barangay_entry.get().strip().upper(),
             "medical_history": ""
         }

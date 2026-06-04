@@ -1,18 +1,8 @@
-import os
-import sys
 from tkinter import *
 from tkinter import messagebox
 from utils.theme import T, FONT, apply_styles
 from utils.widgets import mk_entry
-
-
-def resource_path(relative_path):
-    """Get absolute path to resource, supporting PyInstaller bundles."""
-    if hasattr(sys, '_MEIPASS'):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
+from utils.resources import get_resource_path, set_window_icon
 
 
 def create_login_window(on_login_success):
@@ -23,18 +13,14 @@ def create_login_window(on_login_success):
     login_window.title("Hospital Information System — Login")
     login_window.geometry("480x540")
     login_window.resizable(False, False)
-    login_window.eval("tk::PlaceWindow . center")
+    login_window.update_idletasks()
+    width = 480
+    height = 540
+    x = (login_window.winfo_screenwidth() // 2) - (width // 2)
+    y = (login_window.winfo_screenheight() // 2) - (height // 2)
+    login_window.geometry(f"{width}x{height}+{x}+{y}")
     login_window.configure(bg=T["bg"])
-
-    try:
-        login_window.iconbitmap(resource_path("qphn.ico"))
-    except Exception:
-        try:
-            icon = PhotoImage(file=resource_path("qphn.jpg"))
-            login_window.iconphoto(True, icon)
-        except Exception:
-            pass
-
+    set_window_icon(login_window, "qphn.ico")
     apply_styles()
 
     # Subtle background grid
