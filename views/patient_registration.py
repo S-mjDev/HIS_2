@@ -58,13 +58,12 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     id_inner.pack(fill=X, padx=20, pady=12)
     Label(id_inner, text="ASSIGNED PATIENT ID",
           font=FONT["tag"], bg=T["panel"], fg=T["muted"]).pack(side=LEFT, padx=(0, 16))
-    patient_id_label = Label(id_inner, text="",
+    patient_id_label = Label(id_inner, text="Assign on save",
                              font=FONT["mono"],
                              bg=T["accent_lt"], fg=T["accent"],
                              padx=14, pady=4,
                              highlightthickness=1, highlightbackground=T["accent"])
     patient_id_label.pack(side=LEFT)
-    patient_id_label.config(text=db.generate_next_patient_id())
 
     def section(title):
         c = Frame(outer, bg=T["panel"],
@@ -108,7 +107,6 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     name_entry        = fld(g1, "First Name",   0, 0)
     middle_name_entry = fld(g1, "Middle Name",  0, 2)
     last_name_entry   = fld(g1, "Last Name",    1, 0)
-    age_entry         = fld(g1, "Age",          1, 2)
     gender_var        = StringVar(value="MALE")
     fld(g1, "Gender",       2, 0, combo_var=gender_var, combo_vals=["MALE", "FEMALE", "OTHER"])
     civil_status_var  = StringVar(value="SINGLE")
@@ -130,7 +128,7 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     emergency_entry   = fld(g2, "Emergency Contact", 2, 2)
 
     def clear_patient_form():
-        for w in [name_entry, middle_name_entry, last_name_entry, age_entry,
+        for w in [name_entry, middle_name_entry, last_name_entry,
                   phone_entry, email_entry, barangay_entry, municipality_entry,
                   province_entry, birth_place_entry, nationality_entry, emergency_entry]:
             w.delete(0, END)
@@ -144,7 +142,6 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
         gender_var.set("MALE")
 
     def register_patient(force=False):
-        patient_id = patient_id_label.cget("text")
         first_name = name_entry.get().strip()
         last_name  = last_name_entry.get().strip()
 
@@ -163,7 +160,6 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
             "first_name":    first_name.upper(),
             "middle_name":   middle_name_entry.get().strip().upper(),
             "last_name":     last_name.upper(),
-            "age":           age_entry.get(),
             "gender":        gender_var.get().upper(),
             "birth_date":    birth_date_value or None,
             "birth_place":   birth_place_entry.get().strip().upper(),
@@ -186,16 +182,22 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
         if force and not messagebox.askyesno("Confirm", "Duplicate detected. Save anyway?"):
             return
 
-        db.add_patient(patient_id, patient_data)
+        assigned_patient_id = db.add_patient(patient_data)
+        if not assigned_patient_id:
+            messagebox.showerror("Error",
+                "Unable to register patient. Please try again.")
+            return
+
+        patient_id_label.config(text=assigned_patient_id)
         messagebox.showinfo("Registered",
-            f"Patient {first_name} {last_name} registered.\nID: {patient_id}")
+            f"Patient {first_name} {last_name} registered.\nID: {assigned_patient_id}")
 
         for key in ("patient_list", "dashboard"):
             r = page_refreshers.get(key)
             if r:
                 r()
 
-        patient_id_label.config(text=db.generate_next_patient_id())
+        patient_id_label.config(text="Assign on save")
         clear_patient_form()
 
     bf = Frame(outer, bg=T["bg"])
