@@ -2,13 +2,13 @@ import os
 import sys
 from tkinter import *
 from utils.theme import T, FONT, apply_styles
-from utils.resources import get_resource_path, set_window_icon
 from models.user_database import UserDatabase
 from views.dashboard import build_dashboard_page
 from views.user_registration import build_user_registration_page
 from views.user_management import build_user_management_page
 from views.patient_registration import build_patient_registration_page
 from views.search_patient import build_search_patient_page
+from views.manual_patient_registration import build_manual_registration_page
 
 
 # ── Global state ──────────────────────────────────────────
@@ -17,6 +17,15 @@ page_container = None
 pages          = {}
 page_refreshers = {}
 _shared_user_db = None
+
+
+def resource_path(relative_path):
+    """Get absolute path to resource, supporting PyInstaller bundles."""
+    if hasattr(sys, '_MEIPASS'):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
 
 
 def get_user_db():
@@ -77,6 +86,13 @@ def open_user_management():
     show_page('user_management')
 
 
+def open_manual_registration(user_data):
+    if 'manual_registration' not in pages:
+        pages['manual_registration'] = build_manual_registration_page(
+            page_container, user_data, page_refreshers)
+    show_page('manual_registration')
+
+
 # ── Main window ───────────────────────────────────────────
 
 def create_main_application(user_data):
@@ -88,7 +104,16 @@ def create_main_application(user_data):
     window.minsize(960, 640)
     window.configure(bg=T["bg"])
     window.resizable(True, True)
-    set_window_icon(window, "qphn.ico")
+
+    try:
+        window.iconbitmap(resource_path("qphn.ico"))
+    except Exception:
+        try:
+            icon = PhotoImage(file=resource_path("qphn.jpg"))
+            window.iconphoto(True, icon)
+        except Exception:
+            pass
+
     apply_styles()
 
     # ── Top bar ───────────────────────────────────────────
@@ -213,8 +238,9 @@ def create_main_application(user_data):
 
     if user_data.get("role") == "Administrator":
         nav_btn("Administration", "", None, section=True)
-        nav_btn("User Registration", "⊕", open_user_registration)
-        nav_btn("User Management",   "⊞", open_user_management)
+        nav_btn("Manual Registration", "✎", lambda: open_manual_registration(user_data))
+        nav_btn("User Registration",   "⊕", open_user_registration)
+        nav_btn("User Management",     "⊞", open_user_management)
 
     Frame(sidebar, bg=T["sidebar"]).pack(fill=BOTH, expand=True)
     Frame(sidebar, bg="#2a3f5c", height=1).pack(fill=X, padx=16, pady=(0, 4))
@@ -232,8 +258,9 @@ def create_main_application(user_data):
     pages["patient_registration"] = build_patient_registration_page(page_container, user_data, page_refreshers)
     pages["search_patient"]       = build_search_patient_page(page_container, page_refreshers)
     if user_data.get("role") == "Administrator":
-        pages["user_registration"] = build_user_registration_page(page_container, get_user_db)
-        pages["user_management"]   = build_user_management_page(page_container, get_user_db)
+        pages["user_registration"]   = build_user_registration_page(page_container, get_user_db)
+        pages["user_management"]     = build_user_management_page(page_container, get_user_db)
+        pages["manual_registration"] = build_manual_registration_page(page_container, user_data, page_refreshers)
 
     if db_btn:
         db_btn.event_generate("<Button-1>")

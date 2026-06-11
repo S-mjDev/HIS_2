@@ -77,7 +77,6 @@ class DatabaseConnection:
             first_name VARCHAR(50) NOT NULL,
             middle_name VARCHAR(50) NOT NULL,
             last_name VARCHAR(50) NOT NULL,
-            age INT,
             gender VARCHAR(10),
             birth_date DATE,
             birth_place VARCHAR(100),

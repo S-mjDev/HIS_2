@@ -59,22 +59,39 @@ class PatientDatabase:
                 return str(date_value)
         return date_value.strftime("%m-%d-%Y")
 
-    def add_patient(self, patient_id, data):
-        """Add a new patient to the database."""
+    def _next_patient_id(self, patient_id=None):
+        query = "SELECT MAX(CAST(patient_id AS UNSIGNED)) FROM patients WHERE CAST(patient_id AS UNSIGNED) >= %s FOR UPDATE"
+        cursor = self.db.execute_query(query, (self.STARTING_ID,))
+        if cursor:
+            result = cursor.fetchone()
+            if result and result[0]:
+                return str(int(result[0]) + 1)
+        return str(self.STARTING_ID)
+
+    def add_patient(self, patient_id_or_data, data=None):
+        """Add a new patient to the database and return the assigned patient ID.
+        Accepts add_patient(patient_id, data) or add_patient(data) where data contains "patient_id".
+        """
+        if data is None:
+            data = patient_id_or_data
+            patient_id = data.get("patient_id", "")
+        else:
+            patient_id = patient_id_or_data
         insert_query = """
-        INSERT INTO patients (patient_id, first_name, middle_name, last_name, age, gender,
+        INSERT INTO patients (patient_id, first_name, middle_name, last_name, gender,
             birth_date, birth_place, civil_status, nationality, registered_by,
             phone, email, barangay, municipality, province, medical_history, registration_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
         birth_date_value = self._normalize_birth_date(data.get('birth_date'))
         try:
+            self.db.execute_query("START TRANSACTION")
+            patient_id = self._next_patient_id(patient_id_or_data) if not patient_id else patient_id
             self.db.execute_query(insert_query, (
                 patient_id,
                 data.get('first_name', ''),
                 data.get('middle_name', ''),
                 data.get('last_name', ''),
-                data.get('age', ''),
                 data.get('gender', ''),
                 birth_date_value,
                 data.get('birth_place', ''),
@@ -89,10 +106,18 @@ class PatientDatabase:
                 data.get('medical_history', '')
             ))
             self.db.commit()
-            return True
+            return patient_id
         except Error as e:
-            print(f"Error adding patient: {e}")
-            return False
+            if self.db.connection:
+                try:
+                    self.db.connection.rollback()
+                except Exception:
+                    pass
+            if getattr(e, 'errno', None) == 1062 and 'patient_id' in str(e).lower():
+                print(f"Duplicate patient_id detected on insert: {patient_id}")
+            else:
+                print(f"Error adding patient: {e}")
+            return None
 
     def _map_patient_row(self, row):
         """Map a raw patient row tuple into a dictionary."""
@@ -102,26 +127,25 @@ class PatientDatabase:
             'first_name': row[2],
             'middle_name': row[3],
             'last_name': row[4],
-            'age': row[5],
-            'gender': row[6],
-            'birth_date': self._format_birth_date_for_output(row[7]),
-            'birth_place': row[8],
-            'civil_status': row[9],
-            'nationality': row[10],
-            'registered_by': row[11],
-            'phone': row[12],
-            'email': row[13],
-            'barangay': row[14],
-            'municipality': row[15],
-            'province': row[16],
-            'medical_history': row[17],
-            'registration_date': str(row[18]) if row[18] else None
+            'gender': row[5],
+            'birth_date': self._format_birth_date_for_output(row[6]),
+            'birth_place': row[7],
+            'civil_status': row[8],
+            'nationality': row[9],
+            'registered_by': row[10],
+            'phone': row[11],
+            'email': row[12],
+            'barangay': row[13],
+            'municipality': row[14],
+            'province': row[15],
+            'medical_history': row[16],
+            'registration_date': str(row[17]) if row[17] else None
         }
 
     def get_patient(self, patient_id):
         """Get patient by ID."""
         query = (
-            "SELECT id, patient_id, first_name, middle_name, last_name, age, gender, birth_date, "
+            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, registered_by, phone, email, barangay, "
             "municipality, province, medical_history, registration_date FROM patients WHERE patient_id = %s"
         )
@@ -135,7 +159,7 @@ class PatientDatabase:
     def get_all_patients(self):
         """Get all patients ordered by registration date."""
         query = (
-            "SELECT id, patient_id, first_name, middle_name, last_name, age, gender, birth_date, "
+            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, registered_by, phone, email, barangay, "
             "municipality, province, medical_history, registration_date FROM patients ORDER BY registration_date DESC"
         )
@@ -150,7 +174,7 @@ class PatientDatabase:
         """Search patients by ID or name."""
         like_term = f"%{search_term}%"
         query = (
-            "SELECT id, patient_id, first_name, middle_name, last_name, age, gender, birth_date, "
+            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, registered_by, phone, email, barangay, "
             "municipality, province, medical_history, registration_date FROM patients "
             "WHERE UPPER(patient_id) LIKE %s OR UPPER(first_name) LIKE %s "
@@ -170,7 +194,7 @@ class PatientDatabase:
     def update_patient(self, patient_id, data):
         """Update patient record by ID."""
         query = (
-            "UPDATE patients SET first_name = %s, middle_name = %s, last_name = %s, age = %s, "
+            "UPDATE patients SET first_name = %s, middle_name = %s, last_name = %s, "
             "gender = %s, birth_date = %s, birth_place = %s, civil_status = %s, nationality = %s, "
             "phone = %s, email = %s, barangay = %s, municipality = %s, province = %s, "
             "medical_history = %s WHERE patient_id = %s"
@@ -181,7 +205,6 @@ class PatientDatabase:
                 data.get('first_name', ''),
                 data.get('middle_name', ''),
                 data.get('last_name', ''),
-                data.get('age', ''),
                 data.get('gender', ''),
                 birth_date_value,
                 data.get('birth_place', ''),
@@ -237,3 +260,21 @@ class PatientDatabase:
         if cursor:
             return cursor.fetchone()[0] > 0
         return False
+
+    def refresh_database_counter(self):
+        """Refresh and synchronize the patient ID counter with the database.
+        Call this after patient registration to avoid ID duplication in concurrent scenarios."""
+        try:
+            # Commit any pending transactions to ensure latest data
+            self.db.commit()
+            # Get the current maximum patient ID
+            query = "SELECT MAX(CAST(patient_id AS UNSIGNED)) FROM patients WHERE CAST(patient_id AS UNSIGNED) >= %s"
+            cursor = self.db.execute_query(query, (self.STARTING_ID,))
+            if cursor:
+                result = cursor.fetchone()
+                if result and result[0]:
+                    return int(result[0]) + 1
+            return self.STARTING_ID
+        except Error as e:
+            print(f"Error refreshing database counter: {e}")
+            return None

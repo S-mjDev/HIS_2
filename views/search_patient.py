@@ -4,7 +4,7 @@ from datetime import datetime
 from utils.theme import T, FONT
 from utils.widgets import mk_entry, mk_btn, mk_combo, page_header, section_label
 from utils.validators import (
-    validate_age, validate_phone, validate_email, validate_date,
+    validate_phone, validate_email, validate_date,
     uppercase_entry_widget, format_birthdate_entry
 )
 from models.patient_database import PatientDatabase
@@ -95,13 +95,12 @@ def build_search_patient_page(parent, page_refreshers):
     rf = Frame(tbl_card, bg=T["panel"])
     rf.pack(fill=BOTH, expand=True, padx=16, pady=(0, 8))
 
-    columns = ("ID", "Name", "Age", "Gender", "Birth Date", "Barangay", "Municipality", "Province", "Registered")
+    columns = ("ID", "Name", "Gender", "Birth Date", "Barangay", "Municipality", "Province", "Registered")
     results_tree = ttk.Treeview(rf, columns=columns, show="headings", height=7)
     for col in columns:
         results_tree.heading(col, text=col)
     results_tree.column("ID",            width=95,  anchor=CENTER, minwidth=70)
     results_tree.column("Name",          width=175, anchor=CENTER, minwidth=100)
-    results_tree.column("Age",           width=50,  anchor=CENTER, minwidth=35)
     results_tree.column("Gender",        width=70,  anchor=CENTER, minwidth=50)
     results_tree.column("Birth Date",    width=95,  anchor=CENTER, minwidth=70)
     results_tree.column("Barangay",      width=120, anchor=CENTER, minwidth=80)
@@ -131,7 +130,7 @@ def build_search_patient_page(parent, page_refreshers):
         for item in results_tree.get_children():
             results_tree.delete(item)
         if not patients:
-            results_tree.insert("", END, values=("No results found","","","","","","","",""))
+            results_tree.insert("", END, values=("No results found", "", "", "", "", "", "", ""))
             results_lbl.config(text="RESULTS  ·  0 records")
             return
         for i, (pid, pd) in enumerate(patients.items()):
@@ -140,7 +139,6 @@ def build_search_patient_page(parent, page_refreshers):
             tag = "even" if i % 2 == 0 else "odd"
             results_tree.insert("", END, tags=(tag,), values=(
                 pid, full_name,
-                pd.get("age","N/A"),
                 (pd.get("gender") or "N/A").upper(),
                 pd.get("birth_date","N/A"),
                 (pd.get("barangay") or "N/A").upper(),
@@ -247,7 +245,7 @@ def build_search_patient_page(parent, page_refreshers):
                 w.grid(row=row*2+1, column=col, sticky=EW, ipady=5,
                        padx=(0 if col == 0 else 12, 12))
             elif date and DateEntry:
-                w = DateEntry(body, width=20, date_pattern="yyyy-mm-dd", font=FONT["body"],
+                w = DateEntry(body, width=20, date_pattern="mm-dd-yyyy", font=FONT["body"],
                               background=T["accent"], foreground=T["white"],
                               headersbackground=T["accent"])
                 w.grid(row=row*2+1, column=col, sticky=EW,
@@ -262,12 +260,11 @@ def build_search_patient_page(parent, page_refreshers):
         popup_first_name       = pf("First Name",      0, 0)
         popup_middle_name      = pf("Middle Name",     0, 2)
         popup_last_name        = pf("Last Name",       0, 4)
-        popup_age              = pf("Age",             1, 0)
         popup_gender_var       = StringVar(value=(patient_data.get("gender") or "MALE").upper())
-        pf("Gender",           1, 2, combo_var=popup_gender_var,
+        pf("Gender",           1, 0, combo_var=popup_gender_var,
            combo_vals=["MALE", "FEMALE", "OTHER"])
-        popup_birth_date       = pf("Birth Date",      1, 4, date=True)
-        popup_birth_place      = pf("Birth Place",     1, 6)
+        popup_birth_date       = pf("Birth Date",      1, 2, date=True)
+        popup_birth_place      = pf("Birth Place",     1, 4)
         popup_civil_status_var = StringVar(value=(patient_data.get("civil_status") or "SINGLE").upper())
         pf("Civil Status",     2, 0, combo_var=popup_civil_status_var,
            combo_vals=["SINGLE", "MARRIED", "WIDOWED", "DIVORCED"])
@@ -286,7 +283,6 @@ def build_search_patient_page(parent, page_refreshers):
                 (popup_first_name,      "first_name"),
                 (popup_middle_name,     "middle_name"),
                 (popup_last_name,       "last_name"),
-                (popup_age,             "age"),
                 (popup_birth_place,     "birth_place"),
                 (popup_nationality,     "nationality"),
                 (popup_phone,           "phone"),
@@ -314,9 +310,6 @@ def build_search_patient_page(parent, page_refreshers):
             if not popup_first_name.get().strip() or not popup_last_name.get().strip():
                 messagebox.showerror("Error", "First Name and Last Name are required", parent=popup)
                 return
-            if not validate_age(popup_age.get()):
-                messagebox.showerror("Error", "Please enter a valid age (1-149)", parent=popup)
-                return
             if popup_phone.get().strip() and not validate_phone(popup_phone.get()):
                 messagebox.showerror("Error", "Please enter a valid phone number", parent=popup)
                 return
@@ -332,7 +325,6 @@ def build_search_patient_page(parent, page_refreshers):
                 "first_name":      popup_first_name.get().strip().upper(),
                 "middle_name":     popup_middle_name.get().strip().upper(),
                 "last_name":       popup_last_name.get().strip().upper(),
-                "age":             popup_age.get().strip(),
                 "gender":          popup_gender_var.get().upper(),
                 "birth_date":      bv or None,
                 "birth_place":     popup_birth_place.get().strip().upper(),

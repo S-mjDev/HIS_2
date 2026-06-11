@@ -15,14 +15,6 @@ def validate_email(email):
     return re.match(pattern, email)
 
 
-def validate_age(age):
-    """Validate that age is within a valid range (1–149)."""
-    try:
-        return 0 < int(age) < 150
-    except ValueError:
-        return False
-
-
 def validate_date(date_text):
     """Validate a date string in MM-DD-YYYY format."""
     try:
