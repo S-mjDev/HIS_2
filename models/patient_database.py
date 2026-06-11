@@ -59,7 +59,7 @@ class PatientDatabase:
                 return str(date_value)
         return date_value.strftime("%m-%d-%Y")
 
-    def _next_patient_id(self):
+    def _next_patient_id(self, patient_id=None):
         query = "SELECT MAX(CAST(patient_id AS UNSIGNED)) FROM patients WHERE CAST(patient_id AS UNSIGNED) >= %s FOR UPDATE"
         cursor = self.db.execute_query(query, (self.STARTING_ID,))
         if cursor:
@@ -68,8 +68,15 @@ class PatientDatabase:
                 return str(int(result[0]) + 1)
         return str(self.STARTING_ID)
 
-    def add_patient(self, data):
-        """Add a new patient to the database and return the assigned patient ID."""
+    def add_patient(self, patient_id_or_data, data=None):
+        """Add a new patient to the database and return the assigned patient ID.
+        Accepts add_patient(patient_id, data) or add_patient(data) where data contains "patient_id".
+        """
+        if data is None:
+            data = patient_id_or_data
+            patient_id = data.get("patient_id", "")
+        else:
+            patient_id = patient_id_or_data
         insert_query = """
         INSERT INTO patients (patient_id, first_name, middle_name, last_name, gender,
             birth_date, birth_place, civil_status, nationality, registered_by,
@@ -79,7 +86,7 @@ class PatientDatabase:
         birth_date_value = self._normalize_birth_date(data.get('birth_date'))
         try:
             self.db.execute_query("START TRANSACTION")
-            patient_id = self._next_patient_id()
+            patient_id = self._next_patient_id(patient_id_or_data) if not patient_id else patient_id
             self.db.execute_query(insert_query, (
                 patient_id,
                 data.get('first_name', ''),
