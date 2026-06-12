@@ -112,7 +112,8 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     civil_status_var  = StringVar(value="SINGLE")
     fld(g1, "Civil Status", 2, 2, combo_var=civil_status_var,
         combo_vals=["SINGLE", "MARRIED", "WIDOWED", "DIVORCED"])
-    nationality_entry = fld(g1, "Nationality",  3, 0)
+    nationality_entry = fld(g1, "Nationality",   3, 0)
+    nationality_entry.insert(0, "FILIPINO")
     birth_date_entry  = fld(g1, "Birth Date",   3, 2, date=True)
     birth_place_entry = fld(g1, "Birth Place",  4, 0)
 
@@ -130,7 +131,7 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     def clear_patient_form():
         for w in [name_entry, middle_name_entry, last_name_entry,
                   phone_entry, email_entry, barangay_entry, municipality_entry,
-                  province_entry, birth_place_entry, nationality_entry, emergency_entry]:
+                  province_entry, birth_place_entry, emergency_entry]:
             w.delete(0, END)
         municipality_entry.insert(0, "CATANAUAN")
         province_entry.insert(0, "QUEZON")
