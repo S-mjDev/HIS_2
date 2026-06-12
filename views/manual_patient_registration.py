@@ -113,7 +113,7 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=6,
                    padx=(0 if c == 0 else 16, 16))
         elif date and DateEntry:
-            w = DateEntry(grid, width=24, date_pattern="yyyy-mm-dd", font=FONT["body"],
+            w = DateEntry(grid, width=24, date_pattern="mm-dd-yyyy", font=FONT["body"],
                           background=T["accent"], foreground=T["white"],
                           headersbackground=T["accent"])
             w.grid(row=row*2+1, column=c, sticky=EW,
@@ -138,7 +138,8 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
     civil_status_var  = StringVar(value="SINGLE")
     fld(g1, "Civil Status", 2, 2, combo_var=civil_status_var,
         combo_vals=["SINGLE", "MARRIED", "WIDOWED", "DIVORCED"])
-    nationality_entry = fld(g1, "Nationality",  3, 0)
+    nationality_entry = fld(g1, "Nationality",   3, 0)
+    nationality_entry.insert(0, "FILIPINO")
     birth_date_entry  = fld(g1, "Birth Date",   3, 2, date=True)
     birth_place_entry = fld(g1, "Birth Place",  4, 0)
 
@@ -158,8 +159,7 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
         patient_id_entry.delete(0, END)
         id_status_lbl.config(text="", fg=T["muted"])
         for w in [name_entry, middle_name_entry, last_name_entry,
-                  phone_entry, email_entry, birth_place_entry,
-                  nationality_entry, emergency_entry, barangay_entry]:
+                  phone_entry, email_entry, birth_place_entry, emergency_entry, barangay_entry]:
             w.delete(0, END)
         if hasattr(birth_date_entry, "set_date"):
             birth_date_entry.set_date(datetime.today())
