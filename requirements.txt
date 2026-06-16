@@ -5,6 +5,7 @@ tkcalendar
 #  pyinstaller --onefile --noconsole --icon=qphn.ico --add-data "qphn.ico:." --name=Qphn main.py
 #    pyinstaller --onefile --icon=qphn.ico --add-data "qphn.ico:." --name=Qphn main.py
 
-# mysqldump -h server_ip_or_hostname -u username -p database_name > backup.sql
+# mysqldump --column-statistics=0 -h server_ip_or_hostname -u username -p database_name > backup.sql
 
-# mysqldump -h 192.168.1.88 -u root -p his_db > his_backup.sql
+# mysqldump --column-statistics=0 -h 192.168.1.88 -u root -p his_db > his_backup.sql
+

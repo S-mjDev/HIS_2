@@ -46,6 +46,13 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     canvas.bind("<Configure>", _resize_cw)
     canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
 
+    # Bind mousewheel only while hovering over the canvas
+    def _on_mousewheel(e):
+        canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+
+    canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _on_mousewheel))
+    canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))    
+
     outer = Frame(cf, bg=T["bg"])
     outer.pack(fill=BOTH, expand=True, padx=24, pady=16)
     outer.columnconfigure(0, weight=1)
