@@ -42,6 +42,13 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
     canvas.bind("<Configure>", _resize_cw)
     canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
 
+    # Bind mousewheel only while hovering over the canvas
+    def _on_mousewheel(e):
+        canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+
+    canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _on_mousewheel))
+    canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))    
+
     outer = Frame(cf, bg=T["bg"])
     outer.pack(fill=BOTH, expand=True, padx=24, pady=16)
     outer.columnconfigure(0, weight=1)
@@ -118,6 +125,7 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
                           headersbackground=T["accent"])
             w.grid(row=row*2+1, column=c, sticky=EW,
                    padx=(0 if c == 0 else 16, 16))
+            w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))            
         else:
             w = mk_entry(grid, width=24, show=show)
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=7,
@@ -142,6 +150,7 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
     nationality_entry.insert(0, "FILIPINO")
     birth_date_entry  = fld(g1, "Birth Date",   3, 2, date=True)
     birth_place_entry = fld(g1, "Birth Place",  4, 0)
+    birth_place_entry.insert(0, "CATANAUAN")
 
     # Contact info
     g2 = section_card("Contact Information")
@@ -159,7 +168,7 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
         patient_id_entry.delete(0, END)
         id_status_lbl.config(text="", fg=T["muted"])
         for w in [name_entry, middle_name_entry, last_name_entry,
-                  phone_entry, email_entry, birth_place_entry, emergency_entry, barangay_entry]:
+                  phone_entry, email_entry, emergency_entry, barangay_entry]:
             w.delete(0, END)
         if hasattr(birth_date_entry, "set_date"):
             birth_date_entry.set_date(datetime.today())
