@@ -31,16 +31,16 @@ T = {
 }
 
 FONT = {
-    "h1":     ("Georgia", 18, "bold"),
-    "h2":     ("Georgia", 14, "bold"),
-    "h3":     ("Georgia", 11, "bold"),
-    "body":   ("Calibri", 10),
-    "body_b": ("Calibri", 10, "bold"),
-    "small":  ("Calibri", 9),
-    "label":  ("Calibri", 9, "bold"),
+    "h1":     ("Montserrat", 18, "bold"),
+    "h2":     ("Montserrat", 14, "bold"),
+    "h3":     ("Montserrat", 11, "bold"),
+    "body":   ("Montserrat", 10),
+    "body_b": ("Montserrat", 10, "bold"),
+    "small":  ("Montserrat", 9),
+    "label":  ("Montserrat", 9, "bold"),
     "mono":   ("Consolas", 11, "bold"),
-    "nav":    ("Calibri", 10, "bold"),
-    "tag":    ("Calibri", 8, "bold"),
+    "nav":    ("Montserrat", 10, "bold"),
+    "tag":    ("Montserrat", 8, "bold"),
 }
 
 
