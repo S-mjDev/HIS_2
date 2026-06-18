@@ -83,7 +83,7 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
 
     def fld(grid, label, row, col=0, combo_var=None, combo_vals=None, show=None, date=False):
         c = col
-        Label(grid, text=label.title(), font=FONT["tag"],
+        Label(grid, text=label.upper(), font=FONT["tag"],
               bg=T["panel"], fg=T["muted"]).grid(
             row=row*2, column=c, sticky=W, pady=(10, 3), padx=(0 if c == 0 else 16, 8))
         if combo_var and combo_vals:
@@ -135,7 +135,7 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     def clear_patient_form():
         for w in [name_entry, middle_name_entry, last_name_entry,
                   phone_entry, email_entry, barangay_entry, municipality_entry,
-                  province_entry, birth_place_entry, emergency_entry]:
+                  province_entry, emergency_entry]:
             w.delete(0, END)
         municipality_entry.insert(0, "CATANAUAN")
         province_entry.insert(0, "QUEZON")
@@ -162,20 +162,20 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
             return
 
         patient_data = {
-            "first_name":    first_name.title(),
-            "middle_name":   middle_name_entry.get().strip().title(),
-            "last_name":     last_name.title(),
-            "gender":        gender_var.get().title(),
+            "first_name":    first_name.upper(),
+            "middle_name":   middle_name_entry.get().strip().upper(),
+            "last_name":     last_name.upper(),
+            "gender":        gender_var.get().upper(),
             "birth_date":    birth_date_value or None,
-            "birth_place":   birth_place_entry.get().strip().title(),
-            "civil_status":  civil_status_var.get().title(),
-            "nationality":   nationality_entry.get().strip().title(),
-            "municipality":  municipality_entry.get().strip().title(),
-            "province":      province_entry.get().strip().title(),
-            "registered_by": (user_data.get("username") if user_data else "").title(),
-            "phone":         phone_entry.get().strip().title(),
+            "birth_place":   birth_place_entry.get().strip().upper(),
+            "civil_status":  civil_status_var.get().upper(),
+            "nationality":   nationality_entry.get().strip().upper(),
+            "municipality":  municipality_entry.get().strip().upper(),
+            "province":      province_entry.get().strip().upper(),
+            "registered_by": (user_data.get("username") if user_data else "").upper(),
+            "phone":         phone_entry.get().strip().upper(),
             "email":         email_entry.get().strip(),
-            "barangay":      barangay_entry.get().strip().title(),
+            "barangay":      barangay_entry.get().strip().upper(),
             "medical_history": ""
         }
 
