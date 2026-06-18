@@ -95,17 +95,16 @@ def build_search_patient_page(parent, page_refreshers):
     rf = Frame(tbl_card, bg=T["panel"])
     rf.pack(fill=BOTH, expand=True, padx=16, pady=(0, 8))
 
-    columns = ("ID", "Name", "Gender", "Birth Date", "Barangay", "Municipality", "Province", "Registered")
+    columns = ("ID", "Name", "Gender", "Birth Date", "Barangay", "Municipality", "Registered")
     results_tree = ttk.Treeview(rf, columns=columns, show="headings", height=7)
     for col in columns:
         results_tree.heading(col, text=col)
     results_tree.column("ID",            width=95,  anchor=CENTER, minwidth=70)
-    results_tree.column("Name",          width=175, anchor=CENTER, minwidth=100)
+    results_tree.column("Name",          width=175, anchor=W, minwidth=100)
     results_tree.column("Gender",        width=70,  anchor=CENTER, minwidth=50)
     results_tree.column("Birth Date",    width=95,  anchor=CENTER, minwidth=70)
     results_tree.column("Barangay",      width=120, anchor=CENTER, minwidth=80)
     results_tree.column("Municipality",  width=110, anchor=CENTER, minwidth=70)
-    results_tree.column("Province",      width=110, anchor=CENTER, minwidth=70)
     results_tree.column("Registered",    width=130, anchor=CENTER, minwidth=80)
     results_tree.pack(fill=BOTH, expand=True)
 
@@ -130,30 +129,29 @@ def build_search_patient_page(parent, page_refreshers):
         for item in results_tree.get_children():
             results_tree.delete(item)
         if not patients:
-            results_tree.insert("", END, values=("No results found", "", "", "", "", "", "", ""))
+            results_tree.insert("", END, values=("No results found", "", "", "", "", "", ""))
             results_lbl.config(text="RESULTS  ·  0 records")
             return
         for i, (pid, pd) in enumerate(patients.items()):
             full_name = " ".join([pd.get("first_name",""), pd.get("middle_name",""),
-                                  pd.get("last_name","")]).strip().upper() or "N/A"
+                                  pd.get("last_name","")]).strip().title() or "N/A"
             tag = "even" if i % 2 == 0 else "odd"
             results_tree.insert("", END, tags=(tag,), values=(
                 pid, full_name,
-                (pd.get("gender") or "N/A").upper(),
+                (pd.get("gender") or "N/A").title(),
                 pd.get("birth_date","N/A"),
-                (pd.get("barangay") or "N/A").upper(),
-                (pd.get("municipality") or "N/A").upper(),
-                (pd.get("province") or "N/A").upper(),
-                (pd.get("registered_by") or "N/A").upper()
+                (pd.get("barangay") or "N/A").title(),
+                (pd.get("municipality") or "N/A").title(),
+                (pd.get("registered_by") or "N/A").title()
             ))
         results_tree.tag_configure("even", background=T["row_even"])
         results_tree.tag_configure("odd",  background=T["row_odd"])
         results_lbl.config(text=f"RESULTS  ·  {len(patients)} record{'s' if len(patients) != 1 else ''}")
 
     def search_patient():
-        search_term     = search_entry.get().strip().upper()
-        first_name_term = firstname_entry.get().strip().upper()
-        last_name_term  = lastname_entry.get().strip().upper()
+        search_term     = search_entry.get().strip().title()
+        first_name_term = firstname_entry.get().strip().title()
+        last_name_term  = lastname_entry.get().strip().title()
 
         if not search_term and not first_name_term and not last_name_term:
             messagebox.showwarning("Warning", "Please enter a search term")
@@ -164,14 +162,14 @@ def build_search_patient_page(parent, page_refreshers):
             patients = db.search_patients(combined)
             if first_name_term and last_name_term:
                 patients = {pid: p for pid, p in patients.items()
-                            if first_name_term in (p.get("first_name") or "").upper()
-                            and last_name_term in (p.get("last_name") or "").upper()}
+                            if first_name_term in (p.get("first_name") or "").title()
+                            and last_name_term in (p.get("last_name") or "").title()}
             elif first_name_term:
                 patients = {pid: p for pid, p in patients.items()
-                            if first_name_term in (p.get("first_name") or "").upper()}
+                            if first_name_term in (p.get("first_name") or "").title()}
             else:
                 patients = {pid: p for pid, p in patients.items()
-                            if last_name_term in (p.get("last_name") or "").upper()}
+                            if last_name_term in (p.get("last_name") or "").title()}
             if search_term:
                 patients.update(db.search_patients(search_term))
         else:
@@ -262,7 +260,7 @@ def build_search_patient_page(parent, page_refreshers):
         popup_last_name        = pf("Last Name",       0, 4)
         popup_gender_var       = StringVar(value=(patient_data.get("gender") or "MALE").upper())
         pf("Gender",           1, 0, combo_var=popup_gender_var,
-           combo_vals=["MALE", "FEMALE", "OTHER"])
+           combo_vals=["MALE", "FEMALE"])
         popup_birth_date       = pf("Birth Date",      1, 2, date=True)
         popup_birth_place      = pf("Birth Place",     1, 4)
         popup_civil_status_var = StringVar(value=(patient_data.get("civil_status") or "SINGLE").upper())
@@ -322,20 +320,20 @@ def build_search_patient_page(parent, page_refreshers):
                 return
 
             updated_data = {
-                "first_name":      popup_first_name.get().strip().upper(),
-                "middle_name":     popup_middle_name.get().strip().upper(),
-                "last_name":       popup_last_name.get().strip().upper(),
-                "gender":          popup_gender_var.get().upper(),
+                "first_name":      popup_first_name.get().strip().title(),
+                "middle_name":     popup_middle_name.get().strip().title(),
+                "last_name":       popup_last_name.get().strip().title(),
+                "gender":          popup_gender_var.get().title(),
                 "birth_date":      bv or None,
-                "birth_place":     popup_birth_place.get().strip().upper(),
-                "civil_status":    popup_civil_status_var.get().upper(),
-                "nationality":     popup_nationality.get().strip().upper(),
-                "phone":           popup_phone.get().strip().upper(),
-                "email":           popup_email.get().strip().upper(),
-                "barangay":        popup_barangay.get().strip().upper(),
-                "municipality":    popup_municipality.get().strip().upper(),
-                "province":        popup_province.get().strip().upper(),
-                "medical_history": popup_medical_history.get().strip().upper()
+                "birth_place":     popup_birth_place.get().strip().title(),
+                "civil_status":    popup_civil_status_var.get().title(),
+                "nationality":     popup_nationality.get().strip().title(),
+                "phone":           popup_phone.get().strip().title(),
+                "email":           popup_email.get().strip().title(),
+                "barangay":        popup_barangay.get().strip().title(),
+                "municipality":    popup_municipality.get().strip().title(),
+                "province":        popup_province.get().strip().title(),
+                "medical_history": popup_medical_history.get().strip().title()
             }
 
             if db.update_patient(pid, updated_data):

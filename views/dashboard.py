@@ -16,7 +16,7 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
         patients.values(),
         key=lambda item: item.get('registration_date') or '',
         reverse=True
-    )[:10]
+    )[:20]
 
     total_users = 0
     if user_data.get('role') == 'Administrator':
@@ -59,7 +59,7 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
     tree.heading("Gender",        text="Gender")
     tree.heading("Registered By", text="Registered By")
     tree.column("ID",            width=110, anchor=CENTER)
-    tree.column("Name",          width=280, anchor=CENTER)
+    tree.column("Name",          width=280, anchor=W)
     tree.column("Gender",        width=90,  anchor=CENTER)
     tree.column("Registered By", width=180, anchor=CENTER)
 
@@ -69,12 +69,12 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
     sb.pack(side=RIGHT, fill=Y)
 
     for i, pd in enumerate(recent_patients):
-        full_name = f"{pd.get('first_name','')} {pd.get('middle_name','')} {pd.get('last_name','')}".strip().upper()
+        full_name = f"{pd.get('first_name','')} {pd.get('middle_name','')} {pd.get('last_name','')}".strip().title()
         tag = "alt" if i % 2 else ""
         tree.insert("", END, tags=(tag,), values=(
             pd.get("patient_id", "N/A"), full_name,
             (pd.get("gender") or "N/A").upper(),
-            (pd.get("registered_by") or "N/A").upper()
+            (pd.get("registered_by") or "N/A").title()
         ))
     tree.tag_configure("alt", background=T["row_alt"])
 
