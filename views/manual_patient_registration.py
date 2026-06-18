@@ -203,9 +203,9 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
             return
 
         patient_data = {
-            "first_name":      first_name.title(),
-            "middle_name":     middle_name_entry.get().strip().title(),
-            "last_name":       last_name.title(),
+            "first_name":      first_name.upper(),
+            "middle_name":     middle_name_entry.get().strip().upper(),
+            "last_name":       last_name.upper(),
             "gender":          gender_var.get().upper(),
             "birth_date":      birth_date_value or None,
             "birth_place":     birth_place_entry.get().strip().upper(),

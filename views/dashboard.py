@@ -3,6 +3,7 @@ from tkinter import ttk
 from utils.theme import T, FONT
 from utils.widgets import page_header, stat_card
 from models.patient_database import PatientDatabase
+from datetime import date
 
 
 def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
@@ -12,11 +13,6 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
     db = PatientDatabase()
     patients = db.get_all_patients()
     total_patients = len(patients)
-    recent_patients = sorted(
-        patients.values(),
-        key=lambda item: item.get('registration_date') or '',
-        reverse=True
-    )[:20]
 
     total_users = 0
     if user_data.get('role') == 'Administrator':
@@ -25,6 +21,20 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
 
     page_header(frame, "Dashboard",
                 f"Welcome, {user_data['username']}  ·  {user_data['role']}")
+
+    today = date.today().strftime("%Y-%m-%d")
+    recent_patients = [
+        p for p in patients.values()        
+        if (p.get('registration_date') or "").startswith(today)
+    ]
+    recent_patients = sorted(
+        recent_patients,
+        key=lambda item: item.get('registration_date') or '',
+        reverse=True
+    )
+    
+
+    registered_today = sum(1 for p in patients.values() if (p.get('registration_date') or "").startswith(today))
 
     cards_row = Frame(frame, bg=T["bg"])
     cards_row.pack(fill=X, padx=24, pady=(18, 0))
@@ -41,11 +51,12 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
     c3 = stat_card(cards_row, "Recent Registrations", str(len(recent_patients)), "Latest patient records")
     c3.pack(side=LEFT, expand=True, fill=X)
 
+    
     tbl_card = Frame(frame, bg=T["card"],
                      highlightthickness=1, highlightbackground=T["border"])
     tbl_card.pack(fill=BOTH, expand=True, padx=24, pady=18)
 
-    Label(tbl_card, text="RECENT PATIENTS", font=("Helvetica", 9, "bold"),
+    Label(tbl_card, text=f"TODAY'S REGISTRATIONS  ·  {date.today().strftime('%B %d, %Y')}"  , font=("Helvetica", 9, "bold"),
           bg=T["card"], fg=T["accent"]).pack(anchor=W, padx=16, pady=(14, 4))
     Frame(tbl_card, bg=T["border"], height=1).pack(fill=X, padx=16, pady=(0, 8))
 
@@ -73,7 +84,7 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
         tag = "alt" if i % 2 else ""
         tree.insert("", END, tags=(tag,), values=(
             pd.get("patient_id", "N/A"), full_name,
-            (pd.get("gender") or "N/A").upper(),
+            (pd.get("gender") or "N/A").title(),
             (pd.get("registered_by") or "N/A").title()
         ))
     tree.tag_configure("alt", background=T["row_alt"])

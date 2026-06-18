@@ -4,8 +4,7 @@ from datetime import datetime
 from utils.theme import T, FONT
 from utils.widgets import mk_entry, mk_btn, mk_combo, page_header, section_label
 from utils.validators import (
-    validate_phone, validate_email, validate_date,
-    uppercase_entry_widget, format_birthdate_entry
+    validate_phone, validate_email, validate_date, format_birthdate_entry
 )
 from models.patient_database import PatientDatabase
 
@@ -69,7 +68,6 @@ def build_search_patient_page(parent, page_refreshers):
         e = mk_entry(si, width=24)
         e.grid(row=1, column=col, sticky=EW, ipady=8,
                padx=(0 if col == 0 else 12, 12))
-        e.bind("<KeyRelease>", lambda ev: uppercase_entry_widget(e))
         e.bind("<Return>", lambda ev: search_patient())
         return e
 
@@ -252,7 +250,6 @@ def build_search_patient_page(parent, page_refreshers):
                 w = mk_entry(body, width=20)
                 w.grid(row=row*2+1, column=col, sticky=EW, ipady=6,
                        padx=(0 if col == 0 else 12, 12), pady=(0, 2))
-                w.bind("<KeyRelease>", lambda e, x=w: uppercase_entry_widget(x))
             return w
 
         popup_first_name       = pf("First Name",      0, 0)
@@ -316,24 +313,24 @@ def build_search_patient_page(parent, page_refreshers):
                 return
             bv = popup_birth_date.get().strip()
             if bv and not validate_date(bv):
-                messagebox.showerror("Error", "Please enter a valid birth date in YYYY-MM-DD format", parent=popup)
+                messagebox.showerror("Error", "Please enter a valid birth date in MM-DD-YYYY format", parent=popup)
                 return
 
             updated_data = {
-                "first_name":      popup_first_name.get().strip().title(),
-                "middle_name":     popup_middle_name.get().strip().title(),
-                "last_name":       popup_last_name.get().strip().title(),
-                "gender":          popup_gender_var.get().title(),
+                "first_name":      popup_first_name.get().strip().upper(),
+                "middle_name":     popup_middle_name.get().strip().upper(),
+                "last_name":       popup_last_name.get().strip().upper(),
+                "gender":          popup_gender_var.get().upper(),
                 "birth_date":      bv or None,
-                "birth_place":     popup_birth_place.get().strip().title(),
-                "civil_status":    popup_civil_status_var.get().title(),
-                "nationality":     popup_nationality.get().strip().title(),
-                "phone":           popup_phone.get().strip().title(),
-                "email":           popup_email.get().strip().title(),
-                "barangay":        popup_barangay.get().strip().title(),
-                "municipality":    popup_municipality.get().strip().title(),
-                "province":        popup_province.get().strip().title(),
-                "medical_history": popup_medical_history.get().strip().title()
+                "birth_place":     popup_birth_place.get().strip().upper(),
+                "civil_status":    popup_civil_status_var.get().upper(),
+                "nationality":     popup_nationality.get().strip().upper(),
+                "phone":           popup_phone.get().strip().upper(),
+                "email":           popup_email.get().strip().upper(),
+                "barangay":        popup_barangay.get().strip().upper(),
+                "municipality":    popup_municipality.get().strip().upper(),
+                "province":        popup_province.get().strip().upper(),
+                "medical_history": popup_medical_history.get().strip().upper()
             }
 
             if db.update_patient(pid, updated_data):
