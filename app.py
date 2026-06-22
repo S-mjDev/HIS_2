@@ -72,7 +72,10 @@ def open_search_patient():
     if 'search_patient' not in pages:
         pages['search_patient'] = build_search_patient_page(page_container, page_refreshers)
     show_page('search_patient')
-
+    # Trigger refresh every time the page is opened
+    r = page_refreshers.get("search_patient")
+    if r:
+        r()
 
 def open_user_registration():
     if 'user_registration' not in pages:

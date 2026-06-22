@@ -4,7 +4,7 @@ from datetime import datetime
 from utils.theme import T, FONT
 from utils.widgets import mk_entry, mk_btn, mk_combo, page_header, section_label
 from utils.validators import (
-    validate_phone, validate_email, validate_date, format_birthdate_entry
+    validate_phone, validate_email, validate_date
 )
 from models.patient_database import PatientDatabase
 
@@ -383,5 +383,11 @@ def build_search_patient_page(parent, page_refreshers):
     mk_btn(af, "Delete Record", delete_patient, danger=True, width=14).pack(side=LEFT, padx=(0, 8))
     mk_btn(af, "Clear Selection", clear_edit_form, secondary=True, width=14).pack(side=LEFT)
 
-    load_results({})
+    def refresh_search_page():
+        nonlocal db
+        db = PatientDatabase()  # reconnect to get latest records
+        clear_search()          # clears search fields + results table
+        clear_edit_form()       # clears the edit panel
+
+    page_refreshers["search_patient"] = refresh_search_page
     return outer
