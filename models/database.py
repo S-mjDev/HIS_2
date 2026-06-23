@@ -26,8 +26,11 @@ class DatabaseConnection:
                 user=self.user,
                 password=self.password,
                 auth_plugin='mysql_native_password',
-                use_pure=True
+                use_pure=True,
+                connection_timeout=300,
+                autocommit=False
             )
+            
             if self.connection.is_connected():
                 return True
         except Error as e:
