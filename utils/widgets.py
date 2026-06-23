@@ -1,4 +1,6 @@
 from tkinter import *
+import json
+import os
 from tkinter import ttk
 from utils.theme import T, FONT
 
@@ -94,3 +96,69 @@ def stat_card(parent, title, value, icon="", color=None):
           bg=T["panel"], fg=T["text"]).pack(anchor=W, padx=20)
     Frame(f, bg=c, height=3).pack(fill=X, pady=(14, 0))
     return f
+
+HISTORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "input_history.json")
+
+def load_all_history():
+    """Load all history stores from JSON file on startup."""
+    try:
+        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, "r") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Could not load input history: {e}")
+    return {}
+
+def save_all_history(histories: dict):
+    """Save all history stores to JSON file."""
+    try:
+        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(histories, f, indent=2)
+    except Exception as e:
+        print(f"Could not save input history: {e}")
+
+def add_input_history(entry_widget, history_store, history_key, all_histories):
+    """
+    Attach Up/Down arrow key history navigation to an Entry widget.
+    Persists history to JSON automatically on each save.
+    """
+    index = [-1]
+
+    def on_up(event):
+        if not history_store:
+            return
+        if index[0] < len(history_store) - 1:
+            index[0] += 1
+        entry_widget.delete(0, END)
+        entry_widget.insert(0, history_store[index[0]])
+
+    def on_down(event):
+        if index[0] <= 0:
+            index[0] = -1
+            entry_widget.delete(0, END)
+            return
+        index[0] -= 1
+        entry_widget.delete(0, END)
+        entry_widget.insert(0, history_store[index[0]])
+
+    def on_keypress(event):
+        index[0] = -1
+
+    entry_widget.bind("<Up>",       on_up)
+    entry_widget.bind("<Down>",     on_down)
+    entry_widget.bind("<KeyPress>", on_keypress)
+
+    def save(value):
+        """Add value to history and persist to disk."""
+        value = value.strip()
+        if value and (not history_store or history_store[0] != value):
+            history_store.insert(0, value)
+            if len(history_store) > 20:
+                history_store.pop()
+            # Keep all_histories dict in sync and write to disk
+            all_histories[history_key] = history_store
+            save_all_history(all_histories)
+
+    return save

@@ -57,7 +57,7 @@ class PatientDatabase:
                 date_value = datetime.strptime(date_value, "%Y-%m-%d")
             except ValueError:
                 return str(date_value)
-        return date_value.strftime("%m-%d-%Y")
+        return date_value.strftime("%B %d, %Y")
 
     def _next_patient_id(self, patient_id=None):
         query = "SELECT MAX(CAST(patient_id AS UNSIGNED)) FROM patients WHERE CAST(patient_id AS UNSIGNED) >= %s FOR UPDATE"

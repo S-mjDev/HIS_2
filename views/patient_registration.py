@@ -3,6 +3,7 @@ import sys
 from tkinter import *
 from tkinter import ttk, messagebox
 from datetime import datetime
+from utils.widgets import add_input_history, load_all_history, save_all_history
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
@@ -132,6 +133,22 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     province_entry.insert(0, "QUEZON")
     emergency_entry   = fld(g2, "Emergency Contact", 1, 2)
 
+    all_histories = load_all_history()
+
+    # Pull each field's history from file, or start empty
+    barangay_history     = all_histories.get("barangay",     [])
+    municipality_history = all_histories.get("municipality", [])
+    province_history     = all_histories.get("province",     [])
+    birth_place_history  = all_histories.get("birth_place",  [])
+    nationality_history  = all_histories.get("nationality",  [])
+
+    # Attach history to fields
+    save_barangay     = add_input_history(barangay_entry,     barangay_history,     "barangay",     all_histories)
+    save_municipality = add_input_history(municipality_entry, municipality_history, "municipality", all_histories)
+    save_province     = add_input_history(province_entry,     province_history,     "province",     all_histories)
+    save_birth_place  = add_input_history(birth_place_entry,  birth_place_history,  "birth_place",  all_histories)
+    save_nationality  = add_input_history(nationality_entry,  nationality_history,  "nationality",  all_histories)
+
     def clear_patient_form():
         for w in [name_entry, middle_name_entry, last_name_entry,
                   phone_entry, email_entry, barangay_entry, municipality_entry,
@@ -188,19 +205,26 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
             return
 
         assigned_patient_id = db.add_patient(patient_data)
-        if not assigned_patient_id:
+
+        if assigned_patient_id:
+            save_barangay    (barangay_entry.get())
+            save_municipality(municipality_entry.get())
+            save_province    (province_entry.get())
+            save_birth_place (birth_place_entry.get())
+            save_nationality (nationality_entry.get())
+
+            patient_id_label.config(text=assigned_patient_id)
+            messagebox.showinfo("Registered",
+                f"Patient {first_name} {last_name} registered.\nID: {assigned_patient_id}")
+    
+            for key in ("patient_list", "dashboard"):
+                r = page_refreshers.get(key)
+                if r:
+                    r()
+            clear_patient_form()
+        else:
             messagebox.showerror("Error",
                 "Unable to register patient. Please try again.")
-            return
-
-        patient_id_label.config(text=assigned_patient_id)
-        messagebox.showinfo("Registered",
-            f"Patient {first_name} {last_name} registered.\nID: {assigned_patient_id}")
-
-        for key in ("patient_list", "dashboard"):
-            r = page_refreshers.get(key)
-            if r:
-                r()
 
         patient_id_label.config(text="Assign on save")
         clear_patient_form()

@@ -61,14 +61,16 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
     tf = Frame(tbl_card, bg=T["card"])
     tf.pack(fill=BOTH, expand=True, padx=16, pady=(0, 16))
 
-    columns = ("ID", "Name", "Gender", "Registered By")
+    columns = ("ID", "Name", "Birthdate", "Gender", "Registered By")
     tree = ttk.Treeview(tf, columns=columns, show="headings", height=14)
     tree.heading("ID",            text="Patient ID")
     tree.heading("Name",          text="Full Name")
+    tree.heading("Birthdate",     text="Birthdate")
     tree.heading("Gender",        text="Gender")
     tree.heading("Registered By", text="Registered By")
     tree.column("ID",            width=110, anchor=CENTER)
     tree.column("Name",          width=280, anchor=W)
+    tree.column("Birthdate",     width=110, anchor=CENTER)
     tree.column("Gender",        width=90,  anchor=CENTER)
     tree.column("Registered By", width=180, anchor=CENTER)
 
@@ -82,6 +84,7 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
         tag = "alt" if i % 2 else ""
         tree.insert("", END, tags=(tag,), values=(
             pd.get("patient_id", "N/A"), full_name,
+            pd.get("birth_date", "N/A"),
             (pd.get("gender") or "N/A").title(),
             (pd.get("registered_by") or "N/A").title()
         ))
