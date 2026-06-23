@@ -34,8 +34,6 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
     )
     
 
-    registered_today = sum(1 for p in patients.values() if (p.get('registration_date') or "").startswith(today))
-
     cards_row = Frame(frame, bg=T["bg"])
     cards_row.pack(fill=X, padx=24, pady=(18, 0))
 
