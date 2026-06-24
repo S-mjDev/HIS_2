@@ -43,10 +43,21 @@ class PatientDatabase:
         """Convert MM-DD-YYYY input into YYYY-MM-DD for SQL storage."""
         if not date_text:
             return None
-        try:
-            return datetime.strptime(date_text, "%m-%d-%Y").strftime("%Y-%m-%d")
-        except ValueError:
-            return None
+        formats = [
+            "%m-%d-%Y",
+            "%m/%d/%Y",
+            "%B %d, %Y",
+            "%b %d, %Y",
+            "%d %B %Y",
+            "%d %b %Y",
+            "%Y-%m-%d",  # Allow already normalized format
+        ]
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_text, fmt).strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        return None
 
     def _format_birth_date_for_output(self, date_value):
         """Convert stored SQL date into MM-DD-YYYY for display."""
