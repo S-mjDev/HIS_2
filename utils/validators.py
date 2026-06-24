@@ -17,11 +17,23 @@ def validate_email(email):
 
 def validate_date(date_text):
     """Validate a date string in MM-DD-YYYY format."""
-    try:
-        datetime.strptime(date_text, "%m-%d-%Y")
-        return True
-    except ValueError:
-        return False
+    formats = [
+        "%m-%d-%Y",
+        "%m/%d/%Y",
+        "%B %d, %Y",
+        "%B-%d-%Y",
+        "%b %d, %Y",
+        "%d %B %Y",
+        "%d %b %Y",
+        "%Y-%m-%d",       
+    ]
+    for fmt in formats:
+        try:
+            datetime.strptime(date_text, fmt)
+            return True
+        except ValueError:
+            continue
+    return False
 
 
 def validate_username(username):
