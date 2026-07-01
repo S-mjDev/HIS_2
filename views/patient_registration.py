@@ -3,7 +3,7 @@ import sys
 from tkinter import *
 from tkinter import ttk, messagebox
 from datetime import datetime
-from utils.widgets import add_input_history, load_all_history, save_all_history
+from utils.widgets import add_input_history, load_all_history
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
@@ -226,8 +226,8 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
             messagebox.showerror("Error",
                 "Unable to register patient. Please try again.")
 
-        patient_id_label.config(text="Assign on save")
-        clear_patient_form()
+            patient_id_label.config(text="Assign on save")
+            clear_patient_form()
 
     bf = Frame(outer, bg=T["bg"])
     bf.pack(pady=(4, 20), anchor=W)

@@ -85,6 +85,15 @@ class DatabaseConnection:
             birth_place VARCHAR(100),
             civil_status VARCHAR(20),
             nationality VARCHAR(50),
+            age VARCHAR(10),
+            arrival_time VARCHAR(50),
+            diagnosis TEXT,
+            service_type VARCHAR(100),
+            referred_to VARCHAR(100),
+            seen_by_doctor VARCHAR(100),
+            disposition VARCHAR(50),
+            time_if_admit VARCHAR(50),
+            doctor VARCHAR(100),
             registered_by VARCHAR(50),
             phone VARCHAR(15),
             email VARCHAR(100),
@@ -109,6 +118,33 @@ class DatabaseConnection:
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'province'")
             if cursor and not cursor.fetchone():
                 self.execute_query("ALTER TABLE patients ADD COLUMN province VARCHAR(100)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'age'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN age VARCHAR(10)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'arrival_time'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN arrival_time VARCHAR(50)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'diagnosis'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN diagnosis TEXT")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'service_type'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN service_type VARCHAR(100)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'referred_to'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN referred_to VARCHAR(100)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'seen_by_doctor'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN seen_by_doctor VARCHAR(100)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'time_if_admit'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN time_if_admit VARCHAR(50)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'doctor'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN doctor VARCHAR(100)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'disposition'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN disposition VARCHAR(50)")
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'address'")
             if cursor and cursor.fetchone():
                 # Migrate address to barangay if it exists

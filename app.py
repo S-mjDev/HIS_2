@@ -9,6 +9,8 @@ from views.user_management import build_user_management_page
 from views.patient_registration import build_patient_registration_page
 from views.search_patient import build_search_patient_page
 from views.manual_patient_registration import build_manual_registration_page
+from views.er_patient_registration import build_er_patient_registration_page
+from views.er_report import build_er_report_page
 
 
 # ── Global state ──────────────────────────────────────────
@@ -66,6 +68,18 @@ def open_patient_registration(user_data):
         pages['patient_registration'] = build_patient_registration_page(
             page_container, user_data, page_refreshers)
     show_page('patient_registration')
+
+def open_er_patient_registration(user_data):
+    if 'er_patient_registration' not in pages:
+        pages['er_patient_registration'] = build_er_patient_registration_page(
+            page_container, user_data, page_refreshers)
+    show_page('er_patient_registration')
+
+
+def open_er_report(user_data):
+    if 'er_report' not in pages:
+        pages['er_report'] = build_er_report_page(page_container)
+    show_page('er_report')
 
 
 def open_search_patient():
@@ -236,11 +250,13 @@ def create_main_application(user_data):
         return f
 
     db_btn   = nav_btn("Dashboard",            "⊞", lambda: open_dashboard(user_data))
-    reg_btn  = nav_btn("Patient Registration", "＋", lambda: open_patient_registration(user_data))
-    srch_btn = nav_btn("Search Patient",       "⌕", open_search_patient)
+    nav_btn("Patient Registration", "＋", lambda: open_patient_registration(user_data))
+    nav_btn("ER Patient Registration", "＋", lambda: open_er_patient_registration(user_data))
+    nav_btn("Search Patient",       "⌕", open_search_patient)
 
     if user_data.get("role") == "Administrator":
         nav_btn("Administration", "", None, section=True)
+        nav_btn("ER Report",         "📄", lambda: open_er_report(user_data))
         nav_btn("Manual Registration", "✎", lambda: open_manual_registration(user_data))
         nav_btn("User Registration",   "⊕", open_user_registration)
         nav_btn("User Management",     "⊞", open_user_management)
@@ -261,6 +277,7 @@ def create_main_application(user_data):
     pages["patient_registration"] = build_patient_registration_page(page_container, user_data, page_refreshers)
     pages["search_patient"]       = build_search_patient_page(page_container, page_refreshers)
     if user_data.get("role") == "Administrator":
+        pages["er_report"]           = build_er_report_page(page_container)
         pages["user_registration"]   = build_user_registration_page(page_container, get_user_db)
         pages["user_management"]     = build_user_management_page(page_container, get_user_db)
         pages["manual_registration"] = build_manual_registration_page(page_container, user_data, page_refreshers)

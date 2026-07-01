@@ -90,9 +90,13 @@ class PatientDatabase:
             patient_id = patient_id_or_data
         insert_query = """
         INSERT INTO patients (patient_id, first_name, middle_name, last_name, gender,
-            birth_date, birth_place, civil_status, nationality, registered_by,
-            phone, email, barangay, municipality, province, medical_history, registration_date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            birth_date, birth_place, civil_status, nationality, age,
+            arrival_time, diagnosis, service_type, referred_to, seen_by_doctor,
+            disposition, time_if_admit, doctor, registered_by, phone, email,
+            barangay, municipality, province, medical_history, registration_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, NOW())
         """
         birth_date_value = self._normalize_birth_date(data.get('birth_date'))
         try:
@@ -108,6 +112,15 @@ class PatientDatabase:
                 data.get('birth_place', ''),
                 data.get('civil_status', ''),
                 data.get('nationality', ''),
+                data.get('age', ''),
+                data.get('arrival_time', ''),
+                data.get('diagnosis', ''),
+                data.get('service_type', ''),
+                data.get('referred_to', ''),
+                data.get('seen_by_doctor', ''),
+                data.get('disposition', ''),
+                data.get('time_if_admit', ''),
+                data.get('doctor', ''),
                 data.get('registered_by', ''),
                 data.get('phone', ''),
                 data.get('email', ''),
@@ -143,22 +156,32 @@ class PatientDatabase:
             'birth_place': row[7],
             'civil_status': row[8],
             'nationality': row[9],
-            'registered_by': row[10],
-            'phone': row[11],
-            'email': row[12],
-            'barangay': row[13],
-            'municipality': row[14],
-            'province': row[15],
-            'medical_history': row[16],
-            'registration_date': str(row[17]) if row[17] else None
+            'age': row[10],
+            'arrival_time': row[11],
+            'diagnosis': row[12],
+            'service_type': row[13],
+            'referred_to': row[14],
+            'seen_by_doctor': row[15],
+            'time_if_admit': row[16],
+            'doctor': row[17],
+            'registered_by': row[18],
+            'phone': row[19],
+            'email': row[20],
+            'barangay': row[21],
+            'municipality': row[22],
+            'province': row[23],
+            'medical_history': row[24],
+            'registration_date': str(row[25]) if row[25] else None
         }
 
     def get_patient(self, patient_id):
         """Get patient by ID."""
         query = (
             "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
-            "birth_place, civil_status, nationality, registered_by, phone, email, barangay, "
-            "municipality, province, medical_history, registration_date FROM patients WHERE patient_id = %s"
+            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
+            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date "
+            "FROM patients WHERE patient_id = %s"
         )
         cursor = self.db.execute_query(query, (patient_id,))
         if cursor:
@@ -171,10 +194,58 @@ class PatientDatabase:
         """Get all patients ordered by registration date."""
         query = (
             "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
-            "birth_place, civil_status, nationality, registered_by, phone, email, barangay, "
-            "municipality, province, medical_history, registration_date FROM patients ORDER BY registration_date DESC"
+            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
+            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date "
+            "FROM patients ORDER BY registration_date DESC"
         )
         cursor = self.db.execute_query(query)
+        patients = {}
+        if cursor:
+            for row in cursor.fetchall():
+                patients[row[1]] = self._map_patient_row(row)
+        return patients
+
+    def get_patients(self, er_only=False, start_date=None, end_date=None):
+        """Get patients optionally filtered by ER fields and registration date range."""
+        base_query = (
+            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
+            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
+            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date "
+            "FROM patients"
+        )
+        conditions = []
+        params = []
+
+        if er_only:
+            conditions.append(
+                "(arrival_time IS NOT NULL AND arrival_time <> '' OR "
+                "age IS NOT NULL AND age <> '' OR "
+                "diagnosis IS NOT NULL AND diagnosis <> '' OR "
+                "service_type IS NOT NULL AND service_type <> '' OR "
+                "referred_to IS NOT NULL AND referred_to <> '' OR "
+                "seen_by_doctor IS NOT NULL AND seen_by_doctor <> '' OR "
+                "time_if_admit IS NOT NULL AND time_if_admit <> '' OR "
+                "doctor IS NOT NULL AND doctor <> '')"
+            )
+
+        if start_date and end_date:
+            conditions.append("DATE(registration_date) BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+        elif start_date:
+            conditions.append("DATE(registration_date) >= %s")
+            params.append(start_date)
+        elif end_date:
+            conditions.append("DATE(registration_date) <= %s")
+            params.append(end_date)
+
+        if conditions:
+            query = f"{base_query} WHERE {' AND '.join(conditions)} ORDER BY registration_date DESC"
+        else:
+            query = f"{base_query} ORDER BY registration_date DESC"
+
+        cursor = self.db.execute_query(query, tuple(params) if params else None)
         patients = {}
         if cursor:
             for row in cursor.fetchall():
@@ -186,8 +257,9 @@ class PatientDatabase:
         like_term = f"%{search_term}%"
         query = (
             "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
-            "birth_place, civil_status, nationality, registered_by, phone, email, barangay, "
-            "municipality, province, medical_history, registration_date FROM patients "
+            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
+            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date FROM patients "
             "WHERE UPPER(patient_id) LIKE %s OR UPPER(first_name) LIKE %s "
             "OR UPPER(middle_name) LIKE %s OR UPPER(last_name) LIKE %s "
             "OR UPPER(CONCAT(first_name, ' ', last_name)) LIKE %s "
