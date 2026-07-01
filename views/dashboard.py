@@ -80,7 +80,7 @@ def build_dashboard_page(parent, user_data, get_user_db, page_refreshers):
     sb.pack(side=RIGHT, fill=Y)
 
     for i, pd in enumerate(recent_patients):
-        full_name = f"{pd.get('first_name','')} {pd.get('middle_name','')} {pd.get('last_name','')}".strip().title()
+        full_name = f"{pd.get('first_name','')} {pd.get('middle_name','')} {pd.get('last_name','')}".strip().upper()
         tag = "alt" if i % 2 else ""
         tree.insert("", END, tags=(tag,), values=(
             pd.get("patient_id", "N/A"), full_name,

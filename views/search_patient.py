@@ -4,7 +4,7 @@ from datetime import datetime
 from utils.theme import T, FONT
 from utils.widgets import mk_entry, mk_btn, mk_combo, page_header, section_label
 from utils.validators import (
-    validate_phone, validate_email, validate_date
+    format_birthdate_entry, validate_phone, validate_email, validate_date
 )
 from models.patient_database import PatientDatabase
 
@@ -246,10 +246,13 @@ def build_search_patient_page(parent, page_refreshers):
                               headersbackground=T["accent"])
                 w.grid(row=row*2+1, column=col, sticky=EW,
                        padx=(0 if col == 0 else 12, 12), pady=(0, 2))
+                w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
             else:
                 w = mk_entry(body, width=20)
                 w.grid(row=row*2+1, column=col, sticky=EW, ipady=6,
                        padx=(0 if col == 0 else 12, 12), pady=(0, 2))
+                if date:
+                    w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
             return w
 
         popup_first_name       = pf("First Name",      0, 0)
