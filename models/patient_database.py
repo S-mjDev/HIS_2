@@ -162,16 +162,17 @@ class PatientDatabase:
             'service_type': row[13],
             'referred_to': row[14],
             'seen_by_doctor': row[15],
-            'time_if_admit': row[16],
-            'doctor': row[17],
-            'registered_by': row[18],
-            'phone': row[19],
-            'email': row[20],
-            'barangay': row[21],
-            'municipality': row[22],
-            'province': row[23],
-            'medical_history': row[24],
-            'registration_date': str(row[25]) if row[25] else None
+            'disposition': row[16],
+            'time_if_admit': row[17],
+            'doctor': row[18],
+            'registered_by': row[19],
+            'phone': row[20],
+            'email': row[21],
+            'barangay': row[22],
+            'municipality': row[23],
+            'province': row[24],
+            'medical_history': row[25],
+            'registration_date': str(row[26]) if row[26] else None
         }
 
     def get_patient(self, patient_id):
@@ -179,7 +180,7 @@ class PatientDatabase:
         query = (
             "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
             "barangay, municipality, province, medical_history, registration_date "
             "FROM patients WHERE patient_id = %s"
         )
@@ -195,7 +196,7 @@ class PatientDatabase:
         query = (
             "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
             "barangay, municipality, province, medical_history, registration_date "
             "FROM patients ORDER BY registration_date DESC"
         )
@@ -211,7 +212,7 @@ class PatientDatabase:
         base_query = (
             "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
             "barangay, municipality, province, medical_history, registration_date "
             "FROM patients"
         )
@@ -258,7 +259,7 @@ class PatientDatabase:
         query = (
             "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
             "barangay, municipality, province, medical_history, registration_date FROM patients "
             "WHERE UPPER(patient_id) LIKE %s OR UPPER(first_name) LIKE %s "
             "OR UPPER(middle_name) LIKE %s OR UPPER(last_name) LIKE %s "
