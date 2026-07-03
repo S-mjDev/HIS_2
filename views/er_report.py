@@ -14,7 +14,7 @@ except ImportError:
     openpyxl = None
 
 
-def build_er_report_page(parent):
+def build_er_report_page(parent, page_refreshers=None):
     frame = Frame(parent, bg=T["bg"])
     page_header(frame, "ER Patient Report", "Export ER patient registration data to Excel")
 
@@ -151,5 +151,10 @@ def build_er_report_page(parent):
                         bg=T["accent"], fg=T["white"], font=FONT["body_b"],
                         bd=0, relief=FLAT, padx=14, pady=10, cursor="hand2")
     export_btn.pack(anchor=W, pady=(12, 0))
+
+    if page_refreshers is not None:
+        def refresh_er_report_page():
+            return build_er_report_page(parent, page_refreshers)
+        page_refreshers["er_report"] = refresh_er_report_page
 
     return frame

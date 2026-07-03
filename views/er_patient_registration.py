@@ -194,7 +194,6 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
             return
 
         patient_data = {
-            "case_number":   case_number_label.cget("text"),
             "first_name":    first_name.upper(),
             "middle_name":   middle_name_entry.get().strip().upper(),
             "last_name":     last_name.upper(),
@@ -220,6 +219,8 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
             "province":      province_entry.get().strip().upper(),
             "medical_history": ""
         }
+        er_data = dict(patient_data)
+        er_data["case_number"] = case_number_label.cget("text")
 
         duplicate_patient_id = db.has_duplicate_patient(patient_data)
 
@@ -233,7 +234,7 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
             if not messagebox.askyesno("Confirm", "Duplicate detected. Save anyway? This will create a separate ER visit for the existing patient."):
                 return
             assigned_patient_id = duplicate_patient_id
-            er_case_number = db.add_er_visit(duplicate_patient_id, patient_data)
+            er_case_number = db.add_er_visit(duplicate_patient_id, er_data)
             if er_case_number:
                 messagebox.showinfo("Registered",
                     f"ER visit saved for existing patient ID {duplicate_patient_id}.\nCase Number: {er_case_number}")
@@ -247,10 +248,8 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
                 return
             assigned_patient_id = None
         else:
-            assigned_patient_id = db.add_patient(patient_data)
+            assigned_patient_id = db.add_patient(patient_data, include_case_number=False)
             if assigned_patient_id:
-                er_data = patient_data.copy()
-                er_data.pop("case_number", None)
                 er_case_number = db.add_er_visit(assigned_patient_id, er_data)
                 if er_case_number:
                     messagebox.showinfo("Registered",
