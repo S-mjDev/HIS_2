@@ -76,6 +76,7 @@ class DatabaseConnection:
         patients_table = """
         CREATE TABLE IF NOT EXISTS patients (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            case_number VARCHAR(20) UNIQUE NOT NULL,
             patient_id VARCHAR(20) UNIQUE NOT NULL,
             first_name VARCHAR(50) NOT NULL,
             middle_name VARCHAR(50) NOT NULL,
@@ -103,9 +104,43 @@ class DatabaseConnection:
         )
         """
 
+        er_visits_table = """
+        CREATE TABLE IF NOT EXISTS er_visits (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            case_number VARCHAR(20) UNIQUE NOT NULL,
+            patient_id VARCHAR(20) NOT NULL,
+            first_name VARCHAR(50) NOT NULL,
+            middle_name VARCHAR(50) NOT NULL,
+            last_name VARCHAR(50) NOT NULL,
+            gender VARCHAR(10),
+            birth_date DATE,
+            birth_place VARCHAR(100),
+            civil_status VARCHAR(20),
+            nationality VARCHAR(50),
+            age VARCHAR(10),
+            arrival_time VARCHAR(50),
+            diagnosis TEXT,
+            service_type VARCHAR(100),
+            referred_to VARCHAR(100),
+            seen_by_doctor VARCHAR(100),
+            disposition VARCHAR(50),
+            time_if_admit VARCHAR(50),
+            doctor VARCHAR(100),
+            registered_by VARCHAR(50),
+            phone VARCHAR(15),
+            email VARCHAR(100),
+            barangay TEXT,
+            municipality VARCHAR(100),
+            province VARCHAR(100),
+            medical_history TEXT,
+            registration_date DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+
         try:
             self.execute_query(users_table)
             self.execute_query(patients_table)
+            self.execute_query(er_visits_table)
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'nationality'")
             if cursor and not cursor.fetchone():
                 self.execute_query("ALTER TABLE patients ADD COLUMN nationality VARCHAR(50)")
@@ -118,6 +153,9 @@ class DatabaseConnection:
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'province'")
             if cursor and not cursor.fetchone():
                 self.execute_query("ALTER TABLE patients ADD COLUMN province VARCHAR(100)")
+            cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'case_number'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE patients ADD COLUMN case_number VARCHAR(20) UNIQUE NULL")
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'age'")
             if cursor and not cursor.fetchone():
                 self.execute_query("ALTER TABLE patients ADD COLUMN age VARCHAR(10)")

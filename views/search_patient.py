@@ -44,6 +44,7 @@ def build_search_patient_page(parent, page_refreshers):
     frame.columnconfigure(0, weight=1)
     db = PatientDatabase()
     selected_patient_id = StringVar(value="")
+    selected_record_type = StringVar(value="patient")
 
     page_header(frame, "Search Patient Records", "Find, view and edit patient records")
 
@@ -59,6 +60,7 @@ def build_search_patient_page(parent, page_refreshers):
     si.columnconfigure(0, weight=2)
     si.columnconfigure(1, weight=1)
     si.columnconfigure(2, weight=1)
+    si.columnconfigure(3, weight=1)
 
     def sf(label, col):
         Label(si, text=label.upper(), font=FONT["tag"],
@@ -74,9 +76,16 @@ def build_search_patient_page(parent, page_refreshers):
     search_entry    = sf("ID or Full Name", 0)
     firstname_entry = sf("First Name", 1)
     lastname_entry  = sf("Last Name",  2)
+    case_number_entry = sf("Case Number", 3)
+
+    er_only_var = BooleanVar(value=False)
 
     btn_row = Frame(sc, bg=T["panel"])
     btn_row.pack(anchor=W, padx=20, pady=(0, 14))
+    Checkbutton(btn_row, text="ER only", variable=er_only_var,
+                bg=T["panel"], fg=T["text"], selectcolor=T["panel"],
+                activebackground=T["panel"], activeforeground=T["text"],
+                font=FONT["body"]).pack(side=LEFT, padx=(0, 12))
     mk_btn(btn_row, "Search", lambda: search_patient(), width=12).pack(side=LEFT, padx=(0, 8))
     mk_btn(btn_row, "Clear",  lambda: clear_search(), secondary=True, width=10).pack(side=LEFT)
 
@@ -93,11 +102,13 @@ def build_search_patient_page(parent, page_refreshers):
     rf = Frame(tbl_card, bg=T["panel"])
     rf.pack(fill=BOTH, expand=True, padx=16, pady=(0, 8))
 
-    columns = ("ID", "Name", "Gender", "Birth Date", "Barangay", "Municipality", "Registered")
+    columns = ("ID", "Case", "Type", "Name", "Gender", "Birth Date", "Barangay", "Municipality", "Registered")
     results_tree = ttk.Treeview(rf, columns=columns, show="headings", height=7)
     for col in columns:
         results_tree.heading(col, text=col)
     results_tree.column("ID",            width=95,  anchor=CENTER, minwidth=70)
+    results_tree.column("Case",          width=120, anchor=CENTER, minwidth=80)
+    results_tree.column("Type",          width=90,  anchor=CENTER, minwidth=70)
     results_tree.column("Name",          width=175, anchor=W, minwidth=100)
     results_tree.column("Gender",        width=70,  anchor=CENTER, minwidth=50)
     results_tree.column("Birth Date",    width=95,  anchor=CENTER, minwidth=70)
@@ -127,15 +138,19 @@ def build_search_patient_page(parent, page_refreshers):
         for item in results_tree.get_children():
             results_tree.delete(item)
         if not patients:
-            results_tree.insert("", END, values=("No results found", "", "", "", "", "", ""))
+            results_tree.insert("", END, values=("No results found", "", "", "", "", "", "", "", ""))
             results_lbl.config(text="RESULTS  ·  0 records")
             return
         for i, (pid, pd) in enumerate(patients.items()):
             full_name = " ".join([pd.get("first_name",""), pd.get("middle_name",""),
                                   pd.get("last_name","")]).strip().title() or "N/A"
+            record_type_label = (pd.get("record_type") or "patient").replace("_", " ").title()
             tag = "even" if i % 2 == 0 else "odd"
             results_tree.insert("", END, tags=(tag,), values=(
-                pid, full_name,
+                pd.get("patient_id") or "N/A",
+                pd.get("case_number") or "N/A",
+                record_type_label,
+                full_name,
                 (pd.get("gender") or "N/A").title(),
                 pd.get("birth_date","N/A"),
                 (pd.get("barangay") or "N/A").title(),
@@ -147,31 +162,23 @@ def build_search_patient_page(parent, page_refreshers):
         results_lbl.config(text=f"RESULTS  ·  {len(patients)} record{'s' if len(patients) != 1 else ''}")
 
     def search_patient():
-        search_term     = search_entry.get().strip().title()
-        first_name_term = firstname_entry.get().strip().title()
-        last_name_term  = lastname_entry.get().strip().title()
+        search_term     = search_entry.get().strip()
+        first_name_term = firstname_entry.get().strip()
+        last_name_term  = lastname_entry.get().strip()
+        case_number_term= case_number_entry.get().strip()
+        er_only = er_only_var.get()
 
-        if not search_term and not first_name_term and not last_name_term:
+        if not any([search_term, first_name_term, last_name_term, case_number_term]):
             messagebox.showwarning("Warning", "Please enter a search term")
             return
 
-        if first_name_term or last_name_term:
-            combined = f"{first_name_term} {last_name_term}".strip()
-            patients = db.search_patients(combined)
-            if first_name_term and last_name_term:
-                patients = {pid: p for pid, p in patients.items()
-                            if first_name_term in (p.get("first_name") or "").title()
-                            and last_name_term in (p.get("last_name") or "").title()}
-            elif first_name_term:
-                patients = {pid: p for pid, p in patients.items()
-                            if first_name_term in (p.get("first_name") or "").title()}
-            else:
-                patients = {pid: p for pid, p in patients.items()
-                            if last_name_term in (p.get("last_name") or "").title()}
-            if search_term:
-                patients.update(db.search_patients(search_term))
-        else:
-            patients = db.search_patients(search_term)
+        patients = db.search_patients(
+            search_term=search_term,
+            first_name=first_name_term,
+            last_name=last_name_term,
+            case_number=case_number_term,
+            er_only=er_only
+        )
 
         load_results(patients)
         clear_edit_form()
@@ -180,6 +187,8 @@ def build_search_patient_page(parent, page_refreshers):
         search_entry.delete(0, END)
         firstname_entry.delete(0, END)
         lastname_entry.delete(0, END)
+        case_number_entry.delete(0, END)
+        er_only_var.set(False)
         load_results({})
         clear_edit_form()
         results_lbl.config(text="RESULTS")
@@ -189,24 +198,37 @@ def build_search_patient_page(parent, page_refreshers):
         if not sel:
             return
         item = results_tree.item(sel)
-        pid = item["values"][0]
-        if pid == "No results found":
+        values = item["values"]
+        if not values or values[0] == "No results found":
             return
-        selected_patient_id.set(pid)
-        selected_patient_label.config(text=f"Selected patient: {pid}")
+        record_type = (values[2] or "Patient").strip().lower()
+        if record_type == "er visit":
+            selected_patient_id.set(values[1])
+            selected_record_type.set("er_visit")
+            selected_patient_label.config(text=f"Selected ER visit: {values[1]}")
+        else:
+            selected_patient_id.set(values[0])
+            selected_record_type.set("patient")
+            selected_patient_label.config(text=f"Selected patient: {values[0]}")
 
     def open_update_popup():
-        pid = selected_patient_id.get()
-        if not pid:
+        record_key = selected_patient_id.get()
+        record_type = selected_record_type.get()
+        if not record_key:
             messagebox.showwarning("Warning", "Select a patient record before updating")
             return
-        patient_data = db.get_patient(pid)
+        if record_type == "er_visit":
+            patient_data = db.get_er_visit(record_key)
+            title_label = f"Update ER Visit {record_key}"
+        else:
+            patient_data = db.get_patient(record_key)
+            title_label = f"Update Patient {record_key}"
         if not patient_data:
-            messagebox.showerror("Error", "Unable to load selected patient record")
+            messagebox.showerror("Error", "Unable to load selected record")
             return
 
         popup = Toplevel(frame)
-        popup.title(f"Update Patient {pid}")
+        popup.title(title_label)
         popup.configure(bg=T["bg"])
         popup.transient(frame.winfo_toplevel())
         popup.grab_set()
@@ -219,14 +241,45 @@ def build_search_patient_page(parent, page_refreshers):
         y = (popup.winfo_screenheight() // 2) - (height // 2)
         popup.geometry(f'{width}x{height}+{x}+{y}')
 
-        header = Frame(popup, bg=T["bg"])
+        popup_container = Frame(popup, bg=T["bg"])
+        popup_container.pack(fill=BOTH, expand=True)
+
+        popup_canvas = Canvas(popup_container, bg=T["bg"], highlightthickness=0)
+        popup_scrollbar = ttk.Scrollbar(popup_container, orient=VERTICAL, command=popup_canvas.yview)
+        popup_canvas.configure(yscrollcommand=popup_scrollbar.set)
+        popup_scrollbar.pack(side=RIGHT, fill=Y)
+        popup_canvas.pack(side=LEFT, fill=BOTH, expand=True)
+
+        scrollable_frame = Frame(popup_canvas, bg=T["bg"])
+        scrollable_window = popup_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+        def _on_frame_configure(event):
+            popup_canvas.configure(scrollregion=popup_canvas.bbox("all"))
+        def _on_canvas_configure(event):
+            popup_canvas.itemconfig(scrollable_window, width=event.width)
+        def _on_mousewheel(event):
+            popup_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        scrollable_frame.bind("<Configure>", _on_frame_configure)
+        popup_canvas.bind("<Configure>", _on_canvas_configure)
+        popup_canvas.bind("<Enter>", lambda e: popup_canvas.bind_all("<MouseWheel>", _on_mousewheel))
+        popup_canvas.bind("<Leave>", lambda e: popup_canvas.unbind_all("<MouseWheel>"))
+
+        header = Frame(scrollable_frame, bg=T["bg"])
         header.pack(fill=X, padx=16, pady=(12, 6))
-        Label(header, text=f"Update Patient {pid}", font=("Arial", 16, "bold"),
+        Label(header, text=title_label, font=("Arial", 16, "bold"),
               bg=T["bg"], fg=T["text"]).pack(anchor=W)
-        Label(header, text="Edit patient details.",
+        Label(header, text="Edit ER patient registration details.",
               font=FONT["small"], bg=T["bg"], fg=T["muted"]).pack(anchor=W, pady=(2, 0))
 
-        body = Frame(popup, bg=T["panel"], highlightthickness=1,
+        info_row = Frame(scrollable_frame, bg=T["bg"])
+        info_row.pack(fill=X, padx=16, pady=(0, 8))
+        Label(info_row, text=f"Patient ID: {patient_data.get('patient_id', 'N/A')}",
+              font=FONT["body"], bg=T["bg"], fg=T["text"]).pack(side=LEFT, padx=(0, 18))
+        Label(info_row, text=f"Case Number: {patient_data.get('case_number', 'N/A')}",
+              font=FONT["body"], bg=T["bg"], fg=T["text"]).pack(side=LEFT)
+
+        body = Frame(scrollable_frame, bg=T["panel"], highlightthickness=1,
                      highlightbackground=T["border"])
         body.pack(fill=BOTH, expand=True, padx=16, pady=(0, 12))
         for ci in (0, 2, 4, 6):
@@ -274,7 +327,17 @@ def build_search_patient_page(parent, page_refreshers):
         popup_municipality.insert(0, "CATANAUAN")
         popup_province         = pf("Province",        3, 4)
         popup_province.insert(0, "QUEZON")
-        popup_medical_history  = pf("Medical History", 4, 0)
+        popup_registered_by    = pf("Registered By",   3, 6)
+        popup_arrival_time     = pf("Arrival Time",    4, 0)
+        popup_age              = pf("Age",             4, 2)
+        popup_diagnosis        = pf("Diagnosis",       4, 4)
+        popup_service_type     = pf("Type of Service", 4, 6)
+        popup_referred_to      = pf("Referral To",     5, 0)
+        popup_seen_by_doctor   = pf("Seen by Doctor",  5, 2)
+        popup_disposition      = pf("Disposition",      5, 4)
+        popup_time_if_admit    = pf("Time if Admit",   5, 6)
+        popup_doctor           = pf("Doctor",          6, 0)
+        popup_medical_history  = pf("Medical History", 7, 0)
 
         def populate_popup():
             for w, key in [
@@ -288,6 +351,16 @@ def build_search_patient_page(parent, page_refreshers):
                 (popup_barangay,        "barangay"),
                 (popup_municipality,    "municipality"),
                 (popup_province,        "province"),
+                (popup_registered_by,   "registered_by"),
+                (popup_arrival_time,    "arrival_time"),
+                (popup_age,             "age"),
+                (popup_diagnosis,       "diagnosis"),
+                (popup_service_type,    "service_type"),
+                (popup_referred_to,     "referred_to"),
+                (popup_seen_by_doctor,  "seen_by_doctor"),
+                (popup_disposition,     "disposition"),
+                (popup_time_if_admit,   "time_if_admit"),
+                (popup_doctor,          "doctor"),
                 (popup_medical_history, "medical_history"),
             ]:
                 w.delete(0, END)
@@ -320,6 +393,8 @@ def build_search_patient_page(parent, page_refreshers):
                 return
 
             updated_data = {
+                "patient_id":     patient_data.get("patient_id"),
+                "case_number":    patient_data.get("case_number"),
                 "first_name":      popup_first_name.get().strip().upper(),
                 "middle_name":     popup_middle_name.get().strip().upper(),
                 "last_name":       popup_last_name.get().strip().upper(),
@@ -333,13 +408,30 @@ def build_search_patient_page(parent, page_refreshers):
                 "barangay":        popup_barangay.get().strip().upper(),
                 "municipality":    popup_municipality.get().strip().upper(),
                 "province":        popup_province.get().strip().upper(),
+                "registered_by":   popup_registered_by.get().strip().upper(),
+                "arrival_time":    popup_arrival_time.get().strip().upper(),
+                "age":             popup_age.get().strip().upper(),
+                "diagnosis":       popup_diagnosis.get().strip().upper(),
+                "service_type":    popup_service_type.get().strip().upper(),
+                "referred_to":     popup_referred_to.get().strip().upper(),
+                "seen_by_doctor":  popup_seen_by_doctor.get().strip().upper(),
+                "disposition":     popup_disposition.get().strip().upper(),
+                "time_if_admit":   popup_time_if_admit.get().strip().upper(),
+                "doctor":          popup_doctor.get().strip().upper(),
                 "medical_history": popup_medical_history.get().strip().upper()
             }
 
-            if db.update_patient(pid, updated_data):
-                messagebox.showinfo("Success", f"Patient {pid} updated successfully", parent=popup)
-                selected_patient_label.config(text=f"Selected patient: {pid}")
-                if search_entry.get().strip():
+            record_type = selected_record_type.get()
+            updated = False
+            if record_type == "er_visit":
+                updated = db.update_er_visit(patient_data.get("case_number"), updated_data)
+            else:
+                updated = db.update_patient(patient_data.get("patient_id"), updated_data)
+
+            if updated:
+                messagebox.showinfo("Success", f"Record updated successfully", parent=popup)
+                selected_patient_label.config(text=f"Selected record: {patient_data.get('case_number') or patient_data.get('patient_id')}")
+                if search_entry.get().strip() or case_number_entry.get().strip() or er_only_var.get():
                     search_patient()
                 else:
                     load_results({})
@@ -349,7 +441,7 @@ def build_search_patient_page(parent, page_refreshers):
                         r()
                 popup.destroy()
             else:
-                messagebox.showerror("Error", "Unable to update patient record", parent=popup)
+                messagebox.showerror("Error", "Unable to update record", parent=popup)
 
         btn_row = Frame(popup, bg=T["bg"])
         btn_row.pack(fill=X, padx=16, pady=(0, 16))

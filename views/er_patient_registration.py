@@ -61,8 +61,18 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     id_card.pack(fill=X, pady=(0, 14))
     id_inner = Frame(id_card, bg=T["panel"])
     id_inner.pack(fill=X, padx=20, pady=12)
-    Label(id_inner, text="ASSIGNED PATIENT ID",
-          font=FONT["tag"], bg=T["panel"], fg=T["muted"]).pack(side=LEFT, padx=(0, 16))
+    
+    Label(id_inner, text="CASE NUMBER",
+            font=FONT["tag"], bg=T["panel"], fg=T["muted"]).pack(side=LEFT, padx=(0, 8))
+    case_number_label = Label(id_inner, text=db.generate_next_case_number(),
+                              font=FONT["mono"],
+                              bg=T["success_lt"], fg=T["success"],
+                              padx=14, pady=4,
+                              highlightthickness=1, highlightbackground=T["success"])
+    case_number_label.pack(side=LEFT, padx=(0, 20))
+
+    Label(id_inner, text="PATIENT ID",
+          font=FONT["tag"], bg=T["panel"], fg=T["muted"]).pack(side=LEFT, padx=(0, 8))
     patient_id_label = Label(id_inner, text="Assign on save",
                              font=FONT["mono"],
                              bg=T["accent_lt"], fg=T["accent"],
@@ -184,6 +194,7 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
             return
 
         patient_data = {
+            "case_number":   case_number_label.cget("text"),
             "first_name":    first_name.upper(),
             "middle_name":   middle_name_entry.get().strip().upper(),
             "last_name":     last_name.upper(),
@@ -210,15 +221,45 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
             "medical_history": ""
         }
 
-        if not force and db.has_duplicate_patient(patient_data):
+        duplicate_patient_id = db.has_duplicate_patient(patient_data)
+
+        if duplicate_patient_id and not force:
             messagebox.showwarning("Duplicate Patient",
                 "A patient with the same name/birth date already exists.\n"
-                "Use Save Anyway to proceed.")
-            return
-        if force and not messagebox.askyesno("Confirm", "Duplicate detected. Save anyway?"):
+                "Use Save Anyway to save this ER visit separately without changing the existing patient.")
             return
 
-        assigned_patient_id = db.add_patient(patient_data)
+        if duplicate_patient_id and force:
+            if not messagebox.askyesno("Confirm", "Duplicate detected. Save anyway? This will create a separate ER visit for the existing patient."):
+                return
+            assigned_patient_id = duplicate_patient_id
+            er_case_number = db.add_er_visit(duplicate_patient_id, patient_data)
+            if er_case_number:
+                messagebox.showinfo("Registered",
+                    f"ER visit saved for existing patient ID {duplicate_patient_id}.\nCase Number: {er_case_number}")
+                patient_id_label.config(text=duplicate_patient_id)
+                for key in ("patient_list", "dashboard"):
+                    r = page_refreshers.get(key)
+                    if r:
+                        r()
+                case_number_label.config(text=db.generate_next_case_number())
+                clear_patient_form()
+                return
+            assigned_patient_id = None
+        else:
+            assigned_patient_id = db.add_patient(patient_data)
+            if assigned_patient_id:
+                er_data = patient_data.copy()
+                er_data.pop("case_number", None)
+                er_case_number = db.add_er_visit(assigned_patient_id, er_data)
+                if er_case_number:
+                    messagebox.showinfo("Registered",
+                        f"Patient {first_name} {last_name} registered.\nID: {assigned_patient_id}\nCase Number: {er_case_number}")
+                else:
+                    messagebox.showwarning(
+                        "Partial Success",
+                        f"Patient registered with ID {assigned_patient_id}, but saving the ER visit record failed."
+                    )
 
         if assigned_patient_id:
             save_barangay    (barangay_entry.get())
@@ -228,20 +269,14 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
             save_nationality (nationality_entry.get())
 
             patient_id_label.config(text=assigned_patient_id)
-            messagebox.showinfo("Registered",
-                f"Patient {first_name} {last_name} registered in ER.\nID: {assigned_patient_id}")
-
             for key in ("patient_list", "dashboard"):
                 r = page_refreshers.get(key)
                 if r:
                     r()
-            clear_patient_form()
-        else:
-            messagebox.showerror("Error",
-                "Unable to register patient. Please try again.")
+            case_number_label.config(text=db.generate_next_case_number())
             patient_id_label.config(text="Assign on save")
             clear_patient_form()
-
+    
     bf = Frame(outer, bg=T["bg"])
     bf.pack(pady=(4, 20), anchor=W)
     mk_btn(bf, "Register Patient", register_patient, width=18).pack(side=LEFT, padx=(0, 8))

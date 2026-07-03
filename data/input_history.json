@@ -1,5 +1,10 @@
 {
   "barangay": [
+    "rwe",
+    "10",
+    "rwe",
+    "9",
+    "10",
     "eqwe",
     "rwer",
     "rwe",
@@ -14,14 +19,14 @@
     "MAGUITING",
     "CAMANDIISON",
     "SAN ISIDRO",
-    "cawayanin ibaba",
-    "villarica",
-    "7",
-    "1",
-    "san isidro",
-    "10"
+    "cawayanin ibaba"
   ],
   "municipality": [
+    "CATANAUAN",
+    "catanauan",
+    "CATANAUAN",
+    "rwe",
+    "catanauan",
     "eqweqw",
     "rwe",
     "CATANAUAN",
@@ -36,11 +41,14 @@
     "SAN NARCISO",
     "CATANAUAN",
     "general luna",
-    "CATANAUAN",
-    "mulanay",
     "CATANAUAN"
   ],
   "province": [
+    "QUEZON",
+    "quezon",
+    "QUEZON",
+    "rwe",
+    "quezon",
     "eqwe",
     "wer",
     "QUEZON",
@@ -52,6 +60,10 @@
     "QUEZON"
   ],
   "birth_place": [
+    "CATANAUAN",
+    "catanauan",
+    "rwe",
+    "catanauan",
     "eqwe",
     "rwerew",
     "rwe",
