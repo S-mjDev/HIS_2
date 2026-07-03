@@ -76,7 +76,7 @@ class DatabaseConnection:
         patients_table = """
         CREATE TABLE IF NOT EXISTS patients (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            case_number VARCHAR(20) UNIQUE NOT NULL,
+            case_number VARCHAR(20) UNIQUE NULL,
             patient_id VARCHAR(20) UNIQUE NOT NULL,
             first_name VARCHAR(50) NOT NULL,
             middle_name VARCHAR(50) NOT NULL,
@@ -154,8 +154,16 @@ class DatabaseConnection:
             if cursor and not cursor.fetchone():
                 self.execute_query("ALTER TABLE patients ADD COLUMN province VARCHAR(100)")
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'case_number'")
-            if cursor and not cursor.fetchone():
-                self.execute_query("ALTER TABLE patients ADD COLUMN case_number VARCHAR(20) UNIQUE NULL")
+            if cursor:
+                row = cursor.fetchone()
+                if not row:
+                    self.execute_query("ALTER TABLE patients ADD COLUMN case_number VARCHAR(20) UNIQUE NULL")
+                else:
+                    try:
+                        if row[2] == 'NO':
+                            self.execute_query("ALTER TABLE patients MODIFY COLUMN case_number VARCHAR(20) UNIQUE NULL")
+                    except Exception:
+                        pass
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'age'")
             if cursor and not cursor.fetchone():
                 self.execute_query("ALTER TABLE patients ADD COLUMN age VARCHAR(10)")

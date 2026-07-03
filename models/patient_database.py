@@ -129,9 +129,10 @@ class PatientDatabase:
                 return str(int(result[0]) + 1)
         return str(self.STARTING_ID)
 
-    def add_patient(self, patient_id_or_data, data=None):
+    def add_patient(self, patient_id_or_data, data=None, include_case_number=False):
         """Add a new patient to the database and return the assigned patient ID.
         Accepts add_patient(patient_id, data) or add_patient(data) where data contains "patient_id".
+        Set include_case_number=True only for ER patient inserts when the patient row should also receive a case number.
         """
         if data is None:
             data = patient_id_or_data
@@ -156,7 +157,9 @@ class PatientDatabase:
             try:
                 self.db.execute_query("START TRANSACTION")
                 patient_id = self._next_patient_id(patient_id_or_data) if not patient_id else patient_id
-                case_number = self._next_case_number()
+                case_number = None
+                if include_case_number:
+                    case_number = data.get('case_number') or self._next_case_number()
                 self.db.execute_query(insert_query, (
                     patient_id,
                     case_number,
@@ -283,16 +286,7 @@ class PatientDatabase:
         params = []
 
         if er_only:
-            conditions.append(
-                "(arrival_time IS NOT NULL AND arrival_time <> '' OR "
-                "age IS NOT NULL AND age <> '' OR "
-                "diagnosis IS NOT NULL AND diagnosis <> '' OR "
-                "service_type IS NOT NULL AND service_type <> '' OR "
-                "referred_to IS NOT NULL AND referred_to <> '' OR "
-                "seen_by_doctor IS NOT NULL AND seen_by_doctor <> '' OR "
-                "time_if_admit IS NOT NULL AND time_if_admit <> '' OR "
-                "doctor IS NOT NULL AND doctor <> '')"
-            )
+            conditions.insert(0, "case_number IS NOT NULL AND case_number <> ''")
 
         if start_date and end_date:
             conditions.append("DATE(registration_date) BETWEEN %s AND %s")

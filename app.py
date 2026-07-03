@@ -78,7 +78,12 @@ def open_er_patient_registration(user_data):
 
 def open_er_report(user_data):
     if 'er_report' not in pages:
-        pages['er_report'] = build_er_report_page(page_container)
+        pages['er_report'] = build_er_report_page(page_container, page_refreshers)
+    else:
+        refresher = page_refreshers.get('er_report')
+        if refresher:
+            pages['er_report'].destroy()
+            pages['er_report'] = refresher(page_container, page_refreshers)
     show_page('er_report')
 
 
