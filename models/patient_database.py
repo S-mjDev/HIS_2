@@ -16,6 +16,7 @@ class PatientDatabase:
     """Handles all patient record operations: add, get, search, update, delete."""
 
     STARTING_ID = 30000
+    starting_case_number = 10000
 
     def __init__(self):
         self.db = DatabaseConnection()
@@ -25,7 +26,12 @@ class PatientDatabase:
 
     def generate_next_patient_id(self):
         """Generate the next available patient ID starting from 30000."""
-        query = "SELECT MAX(CAST(patient_id AS UNSIGNED)) FROM patients WHERE CAST(patient_id AS UNSIGNED) >= %s"
+        query = (
+            "SELECT MAX(CAST(patient_id AS UNSIGNED)) "
+            "FROM patients "
+            "WHERE patient_id REGEXP '^[0-9]+$' "
+            "AND CAST(patient_id AS UNSIGNED) >= %s"
+        )
         cursor = self.db.execute_query(query, (self.STARTING_ID,))
 
         if cursor:
@@ -38,6 +44,45 @@ class PatientDatabase:
             next_id = self.STARTING_ID
 
         return str(next_id)
+    
+    def generate_next_case_number(self):
+        """Generate the next ER case number (e.g. ER-00001)."""
+        query = """
+        SELECT MAX(CAST(SUBSTRING(case_number, 4) AS UNSIGNED))
+        FROM (
+            SELECT case_number FROM patients
+            UNION ALL
+            SELECT case_number FROM er_visits
+        ) AS all_cases
+        WHERE case_number REGEXP '^ER-[0-9]+$'
+        """
+        cursor = self.db.execute_query(query)
+        if cursor:
+            result = cursor.fetchone()
+            if result and result[0]:
+                next_num = int(result[0]) + 1
+            else:
+                next_num = self.starting_case_number
+        else:
+            next_num = self.starting_case_number
+        return f"ER-{next_num:05d}"  # e.g. ER-00001, ER-00002
+
+    def _next_case_number(self):
+        query = """
+        SELECT MAX(CAST(SUBSTRING(case_number, 4) AS UNSIGNED))
+        FROM (
+            SELECT case_number FROM patients
+            UNION ALL
+            SELECT case_number FROM er_visits
+        ) AS all_cases
+        WHERE case_number REGEXP '^ER-[0-9]+$'
+        """
+        cursor = self.db.execute_query(query)
+        if cursor:
+            result = cursor.fetchone()
+            if result and result[0]:
+                return f"ER-{int(result[0]) + 1:05d}"
+        return f"ER-{self.starting_case_number:05d}"
 
     def _normalize_birth_date(self, date_text):
         """Convert MM-DD-YYYY input into YYYY-MM-DD for SQL storage."""
@@ -71,7 +116,12 @@ class PatientDatabase:
         return date_value.strftime("%B %d, %Y")
 
     def _next_patient_id(self, patient_id=None):
-        query = "SELECT MAX(CAST(patient_id AS UNSIGNED)) FROM patients WHERE CAST(patient_id AS UNSIGNED) >= %s FOR UPDATE"
+        query = (
+            "SELECT MAX(CAST(patient_id AS UNSIGNED)) "
+            "FROM patients "
+            "WHERE patient_id REGEXP '^[0-9]+$' "
+            "AND CAST(patient_id AS UNSIGNED) >= %s FOR UPDATE"
+        )
         cursor = self.db.execute_query(query, (self.STARTING_ID,))
         if cursor:
             result = cursor.fetchone()
@@ -89,20 +139,216 @@ class PatientDatabase:
         else:
             patient_id = patient_id_or_data
         insert_query = """
-        INSERT INTO patients (patient_id, first_name, middle_name, last_name, gender,
+        INSERT INTO patients (patient_id, case_number, first_name, middle_name, last_name, gender,
             birth_date, birth_place, civil_status, nationality, age,
             arrival_time, diagnosis, service_type, referred_to, seen_by_doctor,
             disposition, time_if_admit, doctor, registered_by, phone, email,
             barangay, municipality, province, medical_history, registration_date)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, NOW())
+                %s, %s, %s, %s, %s, %s, NOW())
         """
         birth_date_value = self._normalize_birth_date(data.get('birth_date'))
+        explicit_id = bool(patient_id)
+        retries = 3
+
+        while retries > 0:
+            try:
+                self.db.execute_query("START TRANSACTION")
+                patient_id = self._next_patient_id(patient_id_or_data) if not patient_id else patient_id
+                case_number = self._next_case_number()
+                self.db.execute_query(insert_query, (
+                    patient_id,
+                    case_number,
+                    data.get('first_name', ''),
+                    data.get('middle_name', ''),
+                    data.get('last_name', ''),
+                    data.get('gender', ''),
+                    birth_date_value,
+                    data.get('birth_place', ''),
+                    data.get('civil_status', ''),
+                    data.get('nationality', ''),
+                    data.get('age', ''),
+                    data.get('arrival_time', ''),
+                    data.get('diagnosis', ''),
+                    data.get('service_type', ''),
+                    data.get('referred_to', ''),
+                    data.get('seen_by_doctor', ''),
+                    data.get('disposition', ''),
+                    data.get('time_if_admit', ''),
+                    data.get('doctor', ''),
+                    data.get('registered_by', ''),
+                    data.get('phone', ''),
+                    data.get('email', ''),
+                    data.get('barangay', ''),
+                    data.get('municipality', ''),
+                    data.get('province', ''),
+                    data.get('medical_history', '')
+                ))
+                self.db.commit()
+                return patient_id
+            except Error as e:
+                if self.db.connection:
+                    try:
+                        self.db.connection.rollback()
+                    except Exception:
+                        pass
+                if getattr(e, 'errno', None) == 1062 and 'patient_id' in str(e).lower():
+                    if explicit_id:
+                        print(f"Duplicate explicit patient_id detected on insert: {patient_id}")
+                        return None
+                    retries -= 1
+                    if retries == 0:
+                        print(f"Duplicate patient_id detected repeatedly on insert: {patient_id}")
+                        return None
+                    patient_id = ""
+                    continue
+                print(f"Error adding patient: {e}")
+                return None
+
+    def _map_patient_row(self, row):
+        """Map a raw patient row tuple into a dictionary."""
+        return {
+            'id': row[0],
+            'patient_id': row[1],
+            'case_number': row[2],
+            'first_name': row[3],
+            'middle_name': row[4],
+            'last_name': row[5],
+            'gender': row[6],
+            'birth_date': self._format_birth_date_for_output(row[7]),
+            'birth_place': row[8],
+            'civil_status': row[9],
+            'nationality': row[10],
+            'age': row[11],
+            'arrival_time': row[12],
+            'diagnosis': row[13],
+            'service_type': row[14],
+            'referred_to': row[15],
+            'seen_by_doctor': row[16],
+            'disposition': row[17],
+            'time_if_admit': row[18],
+            'doctor': row[19],
+            'registered_by': row[20],
+            'phone': row[21],
+            'email': row[22],
+            'barangay': row[23],
+            'municipality': row[24],
+            'province': row[25],
+            'medical_history': row[26],
+            'registration_date': str(row[27]) if row[27] else None
+        }
+
+    def get_patient(self, patient_id):
+        """Get patient by ID."""
+        query = (
+            "SELECT id, patient_id, case_number, first_name, middle_name, last_name, gender, birth_date, "
+            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date "
+            "FROM patients WHERE patient_id = %s"
+        )
+        cursor = self.db.execute_query(query, (patient_id,))
+        if cursor:
+            result = cursor.fetchone()
+            if result:
+                return self._map_patient_row(result)
+        return None
+
+    def get_all_patients(self):
+        """Get all patients ordered by registration date."""
+        query = (
+            "SELECT id, patient_id, case_number, first_name, middle_name, last_name, gender, birth_date, "
+            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date "
+            "FROM patients ORDER BY registration_date DESC"
+        )
+        cursor = self.db.execute_query(query)
+        patients = {}
+        if cursor:
+            for row in cursor.fetchall():
+                patients[row[1]] = self._map_patient_row(row)
+        return patients
+
+    def get_patients(self, er_only=False, start_date=None, end_date=None):
+        """Get patients optionally filtered by ER fields and registration date range."""
+        columns = (
+            "id, patient_id, case_number, first_name, middle_name, last_name, gender, birth_date, "
+            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date"
+        )
+        conditions = []
+        params = []
+
+        if er_only:
+            conditions.append(
+                "(arrival_time IS NOT NULL AND arrival_time <> '' OR "
+                "age IS NOT NULL AND age <> '' OR "
+                "diagnosis IS NOT NULL AND diagnosis <> '' OR "
+                "service_type IS NOT NULL AND service_type <> '' OR "
+                "referred_to IS NOT NULL AND referred_to <> '' OR "
+                "seen_by_doctor IS NOT NULL AND seen_by_doctor <> '' OR "
+                "time_if_admit IS NOT NULL AND time_if_admit <> '' OR "
+                "doctor IS NOT NULL AND doctor <> '')"
+            )
+
+        if start_date and end_date:
+            conditions.append("DATE(registration_date) BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+        elif start_date:
+            conditions.append("DATE(registration_date) >= %s")
+            params.append(start_date)
+        elif end_date:
+            conditions.append("DATE(registration_date) <= %s")
+            params.append(end_date)
+
+        if er_only:
+            patient_query = f"SELECT {columns} FROM patients"
+            er_query = f"SELECT {columns} FROM er_visits"
+            if conditions:
+                where_clause = f" WHERE {' AND '.join(conditions)}"
+                patient_query += where_clause
+                er_query += where_clause
+            query = f"{patient_query} UNION ALL {er_query} ORDER BY registration_date DESC"
+            query_params = tuple(params + params) if params else None
+        else:
+            base_query = f"SELECT {columns} FROM patients"
+            if conditions:
+                query = f"{base_query} WHERE {' AND '.join(conditions)} ORDER BY registration_date DESC"
+            else:
+                query = f"{base_query} ORDER BY registration_date DESC"
+            query_params = tuple(params) if params else None
+
+        cursor = self.db.execute_query(query, query_params)
+        patients = {}
+        if cursor:
+            for row in cursor.fetchall():
+                if er_only:
+                    key = row[2] if row[2] else f"ER-{row[0]}"
+                else:
+                    key = row[1]
+                patients[key] = self._map_patient_row(row)
+        return patients
+
+    def add_er_visit(self, patient_id, data):
+        """Insert a new ER visit record without modifying the existing patient."""
+        insert_query = """
+        INSERT INTO er_visits (case_number, patient_id, first_name, middle_name, last_name, gender,
+            birth_date, birth_place, civil_status, nationality, age,
+            arrival_time, diagnosis, service_type, referred_to, seen_by_doctor,
+            disposition, time_if_admit, doctor, registered_by, phone, email,
+            barangay, municipality, province, medical_history, registration_date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, NOW())
+        """
+        birth_date_value = self._normalize_birth_date(data.get('birth_date'))
+        case_number = data.get('case_number') or self._next_case_number()
         try:
-            self.db.execute_query("START TRANSACTION")
-            patient_id = self._next_patient_id(patient_id_or_data) if not patient_id else patient_id
             self.db.execute_query(insert_query, (
+                case_number,
                 patient_id,
                 data.get('first_name', ''),
                 data.get('middle_name', ''),
@@ -130,151 +376,185 @@ class PatientDatabase:
                 data.get('medical_history', '')
             ))
             self.db.commit()
-            return patient_id
+            return case_number
         except Error as e:
-            if self.db.connection:
-                try:
-                    self.db.connection.rollback()
-                except Exception:
-                    pass
-            if getattr(e, 'errno', None) == 1062 and 'patient_id' in str(e).lower():
-                print(f"Duplicate patient_id detected on insert: {patient_id}")
-            else:
-                print(f"Error adding patient: {e}")
+            print(f"Error adding ER visit: {e}")
             return None
 
-    def _map_patient_row(self, row):
-        """Map a raw patient row tuple into a dictionary."""
-        return {
-            'id': row[0],
-            'patient_id': row[1],
-            'first_name': row[2],
-            'middle_name': row[3],
-            'last_name': row[4],
-            'gender': row[5],
-            'birth_date': self._format_birth_date_for_output(row[6]),
-            'birth_place': row[7],
-            'civil_status': row[8],
-            'nationality': row[9],
-            'age': row[10],
-            'arrival_time': row[11],
-            'diagnosis': row[12],
-            'service_type': row[13],
-            'referred_to': row[14],
-            'seen_by_doctor': row[15],
-            'time_if_admit': row[16],
-            'doctor': row[17],
-            'registered_by': row[18],
-            'phone': row[19],
-            'email': row[20],
-            'barangay': row[21],
-            'municipality': row[22],
-            'province': row[23],
-            'medical_history': row[24],
-            'registration_date': str(row[25]) if row[25] else None
-        }
-
-    def get_patient(self, patient_id):
-        """Get patient by ID."""
+    def get_er_visit(self, case_number):
+        """Get an ER visit by case number."""
         query = (
-            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
+            "SELECT id, patient_id, case_number, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
             "barangay, municipality, province, medical_history, registration_date "
-            "FROM patients WHERE patient_id = %s"
+            "FROM er_visits WHERE case_number = %s"
         )
-        cursor = self.db.execute_query(query, (patient_id,))
+        cursor = self.db.execute_query(query, (case_number,))
         if cursor:
             result = cursor.fetchone()
             if result:
                 return self._map_patient_row(result)
         return None
 
-    def get_all_patients(self):
-        """Get all patients ordered by registration date."""
-        query = (
-            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
-            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
-            "barangay, municipality, province, medical_history, registration_date "
-            "FROM patients ORDER BY registration_date DESC"
-        )
-        cursor = self.db.execute_query(query)
-        patients = {}
-        if cursor:
-            for row in cursor.fetchall():
-                patients[row[1]] = self._map_patient_row(row)
-        return patients
+    def search_patients(self, search_term=None, first_name=None, last_name=None, case_number=None, er_only=False):
+        """Search patients and ER visits by ID, name, or ER case number."""
+        search_term = search_term.strip() if search_term else None
+        first_name = first_name.strip() if first_name else None
+        last_name = last_name.strip() if last_name else None
+        case_number = case_number.strip() if case_number else None
 
-    def get_patients(self, er_only=False, start_date=None, end_date=None):
-        """Get patients optionally filtered by ER fields and registration date range."""
-        base_query = (
-            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
-            "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
-            "barangay, municipality, province, medical_history, registration_date "
-            "FROM patients"
-        )
-        conditions = []
+        if not any([search_term, first_name, last_name, case_number]):
+            return {}
+
+        clauses = []
         params = []
 
-        if er_only:
-            conditions.append(
-                "(arrival_time IS NOT NULL AND arrival_time <> '' OR "
-                "age IS NOT NULL AND age <> '' OR "
-                "diagnosis IS NOT NULL AND diagnosis <> '' OR "
-                "service_type IS NOT NULL AND service_type <> '' OR "
-                "referred_to IS NOT NULL AND referred_to <> '' OR "
-                "seen_by_doctor IS NOT NULL AND seen_by_doctor <> '' OR "
-                "time_if_admit IS NOT NULL AND time_if_admit <> '' OR "
-                "doctor IS NOT NULL AND doctor <> '')"
+        if case_number:
+            clauses.append("UPPER(case_number) LIKE %s")
+            params.append(f"%{case_number.upper()}%")
+
+        if search_term:
+            like_term = f"%{search_term.upper()}%"
+            clauses.append(
+                "(UPPER(patient_id) LIKE %s OR UPPER(case_number) LIKE %s OR "
+                "UPPER(first_name) LIKE %s OR UPPER(middle_name) LIKE %s OR "
+                "UPPER(last_name) LIKE %s OR UPPER(CONCAT(first_name, ' ', last_name)) LIKE %s OR "
+                "UPPER(CONCAT(last_name, ' ', first_name)) LIKE %s)"
             )
+            params.extend([like_term] * 7)
 
-        if start_date and end_date:
-            conditions.append("DATE(registration_date) BETWEEN %s AND %s")
-            params.extend([start_date, end_date])
-        elif start_date:
-            conditions.append("DATE(registration_date) >= %s")
-            params.append(start_date)
-        elif end_date:
-            conditions.append("DATE(registration_date) <= %s")
-            params.append(end_date)
+        if first_name and last_name:
+            clauses.append("(UPPER(first_name) LIKE %s AND UPPER(last_name) LIKE %s)")
+            params.append(f"%{first_name.upper()}%")
+            params.append(f"%{last_name.upper()}%")
+        elif first_name:
+            clauses.append("UPPER(first_name) LIKE %s")
+            params.append(f"%{first_name.upper()}%")
+        elif last_name:
+            clauses.append("UPPER(last_name) LIKE %s")
+            params.append(f"%{last_name.upper()}%")
 
-        if conditions:
-            query = f"{base_query} WHERE {' AND '.join(conditions)} ORDER BY registration_date DESC"
-        else:
-            query = f"{base_query} ORDER BY registration_date DESC"
-
-        cursor = self.db.execute_query(query, tuple(params) if params else None)
-        patients = {}
-        if cursor:
-            for row in cursor.fetchall():
-                patients[row[1]] = self._map_patient_row(row)
-        return patients
-
-    def search_patients(self, search_term):
-        """Search patients by ID or name."""
-        like_term = f"%{search_term}%"
-        query = (
-            "SELECT id, patient_id, first_name, middle_name, last_name, gender, birth_date, "
+        where_clause = "WHERE " + " OR ".join(clauses)
+        columns = (
+            "id, patient_id, case_number, first_name, middle_name, last_name, gender, birth_date, "
             "birth_place, civil_status, nationality, age, arrival_time, diagnosis, service_type, "
-            "referred_to, seen_by_doctor, time_if_admit, doctor, registered_by, phone, email, "
-            "barangay, municipality, province, medical_history, registration_date FROM patients "
-            "WHERE UPPER(patient_id) LIKE %s OR UPPER(first_name) LIKE %s "
-            "OR UPPER(middle_name) LIKE %s OR UPPER(last_name) LIKE %s "
-            "OR UPPER(CONCAT(first_name, ' ', last_name)) LIKE %s "
-            "OR UPPER(CONCAT(last_name, ' ', first_name)) LIKE %s "
-            "ORDER BY registration_date DESC"
+            "referred_to, seen_by_doctor, disposition, time_if_admit, doctor, registered_by, phone, email, "
+            "barangay, municipality, province, medical_history, registration_date"
         )
-        cursor = self.db.execute_query(
-            query, (like_term, like_term, like_term, like_term, like_term, like_term))
+
+        if er_only:
+            query = f"SELECT {columns}, 'er_visit' AS record_type FROM er_visits {where_clause} ORDER BY registration_date DESC"
+            query_params = tuple(params)
+        else:
+            patient_query = f"SELECT {columns}, 'patient' AS record_type FROM patients {where_clause}"
+            er_query = f"SELECT {columns}, 'er_visit' AS record_type FROM er_visits {where_clause}"
+            query = f"{patient_query} UNION ALL {er_query} ORDER BY registration_date DESC"
+            query_params = tuple(params + params)
+
+        cursor = self.db.execute_query(query, query_params)
         patients = {}
         if cursor:
             for row in cursor.fetchall():
-                patients[row[1]] = self._map_patient_row(row)
+                record_type = row[-1]
+                base_row = row[:-1]
+                data = self._map_patient_row(base_row)
+                data["record_type"] = record_type
+                key = data["case_number"] if record_type == "er_visit" else data["patient_id"]
+                patients[key] = data
         return patients
 
     def update_patient(self, patient_id, data):
+        """Update patient record by ID."""
+        query = (
+            "UPDATE patients SET first_name = %s, middle_name = %s, last_name = %s, "
+            "gender = %s, birth_date = %s, birth_place = %s, civil_status = %s, nationality = %s, "
+            "age = %s, arrival_time = %s, diagnosis = %s, service_type = %s, referred_to = %s, "
+            "seen_by_doctor = %s, disposition = %s, time_if_admit = %s, doctor = %s, "
+            "phone = %s, email = %s, barangay = %s, municipality = %s, province = %s, "
+            "medical_history = %s WHERE patient_id = %s"
+        )
+        birth_date_value = self._normalize_birth_date(data.get('birth_date'))
+        try:
+            self.db.execute_query(query, (
+                data.get('first_name', ''),
+                data.get('middle_name', ''),
+                data.get('last_name', ''),
+                data.get('gender', ''),
+                birth_date_value,
+                data.get('birth_place', ''),
+                data.get('civil_status', ''),
+                data.get('nationality', ''),
+                data.get('age', ''),
+                data.get('arrival_time', ''),
+                data.get('diagnosis', ''),
+                data.get('service_type', ''),
+                data.get('referred_to', ''),
+                data.get('seen_by_doctor', ''),
+                data.get('disposition', ''),
+                data.get('time_if_admit', ''),
+                data.get('doctor', ''),
+                data.get('phone', ''),
+                data.get('email', ''),
+                data.get('barangay', ''),
+                data.get('municipality', ''),
+                data.get('province', ''),
+                data.get('medical_history', ''),
+                patient_id
+            ))
+            self.db.commit()
+            return True
+        except Error as e:
+            print(f"Error updating patient: {e}")
+            return False
+
+    def update_er_visit(self, case_number, data):
+        """Update an ER visit record by case number."""
+        query = (
+            "UPDATE er_visits SET patient_id = %s, first_name = %s, middle_name = %s, last_name = %s, "
+            "gender = %s, birth_date = %s, birth_place = %s, civil_status = %s, nationality = %s, "
+            "age = %s, arrival_time = %s, diagnosis = %s, service_type = %s, referred_to = %s, "
+            "seen_by_doctor = %s, disposition = %s, time_if_admit = %s, doctor = %s, registered_by = %s, "
+            "phone = %s, email = %s, barangay = %s, municipality = %s, province = %s, "
+            "medical_history = %s WHERE case_number = %s"
+        )
+        birth_date_value = self._normalize_birth_date(data.get('birth_date'))
+        try:
+            self.db.execute_query(query, (
+                data.get('patient_id', ''),
+                data.get('first_name', ''),
+                data.get('middle_name', ''),
+                data.get('last_name', ''),
+                data.get('gender', ''),
+                birth_date_value,
+                data.get('birth_place', ''),
+                data.get('civil_status', ''),
+                data.get('nationality', ''),
+                data.get('age', ''),
+                data.get('arrival_time', ''),
+                data.get('diagnosis', ''),
+                data.get('service_type', ''),
+                data.get('referred_to', ''),
+                data.get('seen_by_doctor', ''),
+                data.get('disposition', ''),
+                data.get('time_if_admit', ''),
+                data.get('doctor', ''),
+                data.get('registered_by', ''),
+                data.get('phone', ''),
+                data.get('email', ''),
+                data.get('barangay', ''),
+                data.get('municipality', ''),
+                data.get('province', ''),
+                data.get('medical_history', ''),
+                case_number
+            ))
+            self.db.commit()
+            return True
+        except Error as e:
+            print(f"Error updating ER visit: {e}")
+            return False
+
+    def delete_patient(self, patient_id):
         """Update patient record by ID."""
         query = (
             "UPDATE patients SET first_name = %s, middle_name = %s, last_name = %s, "
@@ -326,7 +606,7 @@ class PatientDatabase:
         return False
 
     def has_duplicate_patient(self, data):
-        """Check if a patient with the same name and birth date already exists."""
+        """Return an existing patient_id for the same name and birth date, or None."""
         conditions = []
         params = []
 
@@ -336,13 +616,15 @@ class PatientDatabase:
             params.extend([data['first_name'], data['last_name'], normalized_birth_date])
 
         if not conditions:
-            return False
+            return None
 
-        query = f"SELECT COUNT(*) FROM patients WHERE {' OR '.join(conditions)}"
+        query = f"SELECT patient_id FROM patients WHERE {' OR '.join(conditions)} LIMIT 1"
         cursor = self.db.execute_query(query, tuple(params))
         if cursor:
-            return cursor.fetchone()[0] > 0
-        return False
+            result = cursor.fetchone()
+            if result and result[0]:
+                return result[0]
+        return None
 
     def refresh_database_counter(self):
         """Refresh and synchronize the patient ID counter with the database.
@@ -351,7 +633,12 @@ class PatientDatabase:
             # Commit any pending transactions to ensure latest data
             self.db.commit()
             # Get the current maximum patient ID
-            query = "SELECT MAX(CAST(patient_id AS UNSIGNED)) FROM patients WHERE CAST(patient_id AS UNSIGNED) >= %s"
+            query = (
+                "SELECT MAX(CAST(patient_id AS UNSIGNED)) "
+                "FROM patients "
+                "WHERE patient_id REGEXP '^[0-9]+$' "
+                "AND CAST(patient_id AS UNSIGNED) >= %s"
+            )
             cursor = self.db.execute_query(query, (self.STARTING_ID,))
             if cursor:
                 result = cursor.fetchone()

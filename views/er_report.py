@@ -99,7 +99,7 @@ def build_er_report_page(parent):
             ws.title = "ER Patient Report"
 
             headers = [
-                "Case Number", "Arrival Time", "First Name", "Middle Name", "Last Name",
+                "Case Number", "Patient ID", "Arrival Time", "First Name", "Middle Name", "Last Name",
                 "Barangay", "Municipality", "Province","Birth Date","Age", "Gender",
                 "Civil Status", "Diagnosis", "Type of Service", "Referral To",        
                 "Seen by Doctor", "Disposition", "Time if Admit", "Doctor", 
@@ -110,6 +110,7 @@ def build_er_report_page(parent):
 
             for patient in patients.values():
                 ws.append([
+                    patient.get("case_number", ""),
                     patient.get("patient_id", ""),
                     patient.get("arrival_time", ""),
                     patient.get("first_name", ""),
