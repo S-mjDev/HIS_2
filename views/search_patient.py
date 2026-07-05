@@ -450,14 +450,24 @@ def build_search_patient_page(parent, page_refreshers):
 
     def delete_patient():
         pid = selected_patient_id.get()
+        record_type = selected_record_type.get()
         if not pid:
             messagebox.showwarning("Warning", "Select a patient record before deleting")
             return
+        
+        record_label = "ER visit" if record_type == "er_visit" else "patient"
         if not messagebox.askyesno("Confirm Delete",
-                f"Delete patient record {pid}?\nThis cannot be undone."):
+                f"Delete {record_label} record {pid}?\nThis cannot be undone."):
             return
-        if db.delete_patient(pid):
-            messagebox.showinfo("Deleted", f"Patient {pid} deleted successfully")
+        
+        deleted = False
+        if record_type == "er_visit":
+            deleted = db.delete_er_visit(pid)
+        else:
+            deleted = db.delete_patient(pid)
+        
+        if deleted:
+            messagebox.showinfo("Deleted", f"{record_label.title()} {pid} deleted successfully")
             clear_edit_form()
             if search_entry.get().strip():
                 search_patient()
@@ -468,7 +478,7 @@ def build_search_patient_page(parent, page_refreshers):
                 if r:
                     r()
         else:
-            messagebox.showerror("Error", "Unable to delete patient record")
+            messagebox.showerror("Error", f"Unable to delete {record_label} record")
 
     results_tree.bind("<<TreeviewSelect>>", on_tree_select)
 

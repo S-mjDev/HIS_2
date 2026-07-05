@@ -591,6 +591,16 @@ class PatientDatabase:
             print(f"Error deleting patient: {e}")
             return False
 
+    def delete_er_visit(self, case_number):
+        """Delete an ER visit record by case number."""
+        try:
+            self.db.execute_query("DELETE FROM er_visits WHERE case_number = %s", (case_number,))
+            self.db.commit()
+            return True
+        except Error as e:
+            print(f"Error deleting ER visit: {e}")
+            return False
+
     def patient_exists(self, patient_id):
         """Check if patient exists."""
         query = "SELECT COUNT(*) FROM patients WHERE patient_id = %s"
