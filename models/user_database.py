@@ -1,17 +1,13 @@
 import hashlib
 from mysql.connector import Error
-from models.database import DatabaseConnection
+from models.database import get_connection
 
 
 class UserDatabase:
     """Handles all user account operations: auth, creation, update, delete."""
 
     def __init__(self):
-        self.db = DatabaseConnection()
-        if not self.db.connect():
-            raise Exception("Failed to connect to database")
-        self.db.create_tables()
-        self.create_default_admin()
+        self.db = get_connection()  # Use singleton connection
 
     def hash_password(self, password):
         """Hash password using SHA-256."""
@@ -132,19 +128,3 @@ class UserDatabase:
         except Error as e:
             print(f"Error deleting user: {e}")
         return False
-
-    def create_default_admin(self):
-        """Create default admin user if not exists."""
-        try:
-            check_query = "SELECT COUNT(*) FROM users WHERE username = 'admin'"
-            cursor = self.db.execute_query(check_query)
-            if cursor and cursor.fetchone()[0] == 0:
-                insert_query = """
-                INSERT INTO users (username, password, role, created_date)
-                VALUES (%s, %s, %s, NOW())
-                """
-                self.db.execute_query(insert_query, ('admin', self.hash_password('admin123'), 'Administrator'))
-                self.db.commit()
-                print("Default admin user created")
-        except Error as e:
-            print(f"Error creating default admin: {e}")

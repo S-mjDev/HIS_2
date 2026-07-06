@@ -6,6 +6,24 @@ from mysql.connector import Error
 from mysql.connector.plugins import mysql_native_password
 from mysql.connector.plugins import caching_sha2_password
 
+# Global connection singleton
+_connection_instance = None
+_initialized = False
+
+
+def get_connection():
+    """Get or create a persistent database connection (singleton pattern)."""
+    global _connection_instance, _initialized
+    if _connection_instance is None:
+        _connection_instance = DatabaseConnection()
+        if not _connection_instance.connect():
+            raise Exception("Failed to connect to database")
+    if not _initialized:
+        _connection_instance.create_tables()
+        _connection_instance.create_default_admin()
+        _initialized = True
+    return _connection_instance
+
 
 class DatabaseConnection:
     """Manages the MySQL database connection and core query execution."""
@@ -205,3 +223,21 @@ class DatabaseConnection:
             print("Database tables created successfully")
         except Error as e:
             print(f"Error creating tables: {e}")
+
+    def create_default_admin(self):
+        """Create default admin user if not exists."""
+        import hashlib
+        try:
+            check_query = "SELECT COUNT(*) FROM users WHERE username = 'admin'"
+            cursor = self.execute_query(check_query)
+            if cursor and cursor.fetchone()[0] == 0:
+                insert_query = """
+                INSERT INTO users (username, password, role, created_date)
+                VALUES (%s, %s, %s, NOW())
+                """
+                hashed_pw = hashlib.sha256('admin123'.encode()).hexdigest()
+                self.execute_query(insert_query, ('admin', hashed_pw, 'Administrator'))
+                self.commit()
+                print("Default admin user created")
+        except Error as e:
+            print(f"Error creating default admin: {e}")

@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import messagebox
+from threading import Thread
 from utils.theme import T, FONT, apply_styles
 from utils.widgets import mk_entry
 from utils.resources import get_resource_path, set_window_icon
@@ -7,8 +8,6 @@ from utils.resources import get_resource_path, set_window_icon
 
 def create_login_window(on_login_success):
     """Build and display the login window. Calls on_login_success(user_data) on success."""
-    from models.user_database import UserDatabase
-
     login_window = Tk()
     login_window.title("Hospital Information System — Login")
     login_window.geometry("480x540")
@@ -67,24 +66,49 @@ def create_login_window(on_login_success):
     password_entry = mk_entry(form, width=36, show="●")
     password_entry.pack(fill=X, ipady=9, pady=(0, 22))
 
+    login_button = None  # Will be set below
+
     def login():
+        """Non-blocking login with threading to prevent UI freeze."""
         username = username_entry.get().strip()
         password = password_entry.get().strip()
         if not username or not password:
             messagebox.showerror("Error", "Please enter both username and password")
             return
-        user_db = UserDatabase()
-        success, user_data = user_db.authenticate(username, password)
-        if success:
-            login_window.destroy()
-            on_login_success(user_data)
-        else:
-            messagebox.showerror("Login Failed", "Invalid username or password")
+        
+        # Disable button to prevent multiple login attempts
+        login_button.config(state=DISABLED, text="Signing in...")
+        login_window.update()
+        
+        def auth_thread():
+            """Run authentication in background thread."""
+            from models.user_database import UserDatabase
+            try:
+                user_db = UserDatabase()
+                success, user_data = user_db.authenticate(username, password)
+                # Schedule result handling on main thread
+                login_window.after(0, lambda: handle_login_result(success, user_data))
+            except Exception as e:
+                login_window.after(0, lambda: handle_login_result(False, None, str(e)))
+        
+        def handle_login_result(success, user_data, error_msg=None):
+            """Handle login result on main thread."""
+            if login_window.winfo_exists():
+                if success:
+                    login_window.destroy()
+                    on_login_success(user_data)
+                else:
+                    error = error_msg if error_msg else "Invalid username or password"
+                    messagebox.showerror("Login Failed", error)
+                    login_button.config(state=NORMAL, text="SIGN IN")
+        
+        Thread(target=auth_thread, daemon=True).start()
 
-    Button(form, text="SIGN IN", command=login,
+    login_button = Button(form, text="SIGN IN", command=login,
            bg=T["accent"], fg=T["white"], font=("Calibri", 11, "bold"),
            activebackground=T["accent_h"], activeforeground=T["white"],
-           bd=0, relief=FLAT, pady=12, cursor="hand2").pack(fill=X)
+           bd=0, relief=FLAT, pady=12, cursor="hand2")
+    login_button.pack(fill=X)
 
     login_window.bind("<Return>", lambda e: login())
 
