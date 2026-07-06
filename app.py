@@ -255,7 +255,7 @@ def create_main_application(user_data):
         return f
 
     db_btn   = nav_btn("Dashboard",            "⊞", lambda: open_dashboard(user_data))
-    nav_btn("Patient Registration", "＋", lambda: open_patient_registration(user_data))
+    nav_btn("Out-Patient Registration", "＋", lambda: open_patient_registration(user_data))
     nav_btn("ER Patient Registration", "＋", lambda: open_er_patient_registration(user_data))
     nav_btn("Search Patient",       "⌕", open_search_patient)
 

@@ -18,7 +18,11 @@ def build_er_report_page(parent, page_refreshers=None):
     frame = Frame(parent, bg=T["bg"])
     page_header(frame, "ER Patient Report", "Export ER patient registration data to Excel")
 
+    # Initialize database connection
     db = PatientDatabase()
+    
+    # Create a mutable container to hold the db reference so it can be refreshed
+    db_container = {"instance": db}
 
     content = Frame(frame, bg=T["bg"])
     content.pack(fill=BOTH, expand=True, padx=24, pady=16)
@@ -31,6 +35,16 @@ def build_er_report_page(parent, page_refreshers=None):
                 continue
         return None
 
+    def refresh_database():
+        """Refresh database connection to get latest data."""
+        try:
+            db_container["instance"] = PatientDatabase()
+            return True
+        except Exception as e:
+            messagebox.showerror("Database Error", f"Failed to refresh database:\n{e}")
+            return False
+
+    # Setup filter UI
     filter_card = Frame(content, bg=T["panel"], highlightthickness=1, highlightbackground=T["border"])
     filter_card.pack(fill=X, pady=(0, 18))
     filter_body = Frame(filter_card, bg=T["panel"])
@@ -56,6 +70,10 @@ def build_er_report_page(parent, page_refreshers=None):
         return frame
 
     def export_to_excel():
+        # Refresh database to get latest data before export
+        if not refresh_database():
+            return
+        
         start_date_raw = from_date_entry.get().strip()
         end_date_raw = to_date_entry.get().strip()
 
@@ -75,7 +93,7 @@ def build_er_report_page(parent, page_refreshers=None):
             messagebox.showerror("Invalid date range", "Start date cannot be after end date.")
             return
 
-        patients = db.get_patients(
+        patients = db_container["instance"].get_patients(
             er_only=True,
             start_date=start_date,
             end_date=end_date
@@ -147,10 +165,37 @@ def build_er_report_page(parent, page_refreshers=None):
     Label(content, text="Export all ER patient registration data to a Microsoft Excel worksheet.",
           font=FONT["body"], bg=T["bg"], fg=T["text"]).pack(anchor=W, pady=(0, 4))
 
-    export_btn = Button(content, text="Export ER Report", command=export_to_excel,
+    # Status label for last refresh
+    status_label = Label(content, text="Database ready. Refreshing data on page load...",
+                         font=FONT["small"], bg=T["bg"], fg=T["muted"])
+    status_label.pack(anchor=W, pady=(0, 12))
+
+    def update_status():
+        """Update status label after refresh."""
+        status_label.config(text=f"✓ Data refreshed at {datetime.now().strftime('%H:%M:%S')}", fg=T["accent"])
+        status_label.after(3000, lambda: status_label.config(text="Database ready. Click 'Refresh Data' for latest records.", fg=T["muted"]))
+
+    def refresh_with_status():
+        """Refresh database and update status display."""
+        if refresh_database():
+            update_status()
+
+    # Button container
+    button_frame = Frame(content, bg=T["bg"])
+    button_frame.pack(anchor=W, pady=(0, 0))
+
+    export_btn = Button(button_frame, text="Export ER Report", command=export_to_excel,
                         bg=T["accent"], fg=T["white"], font=FONT["body_b"],
                         bd=0, relief=FLAT, padx=14, pady=10, cursor="hand2")
-    export_btn.pack(anchor=W, pady=(12, 0))
+    export_btn.pack(side=LEFT, padx=(0, 10))
+
+    refresh_btn = Button(button_frame, text="Refresh Data", command=refresh_with_status,
+                         bg=T["border2"], fg=T["white"], font=FONT["body_b"],
+                         bd=0, relief=FLAT, padx=14, pady=10, cursor="hand2")
+    refresh_btn.pack(side=LEFT)
+
+    # Auto-refresh when page opens
+    refresh_with_status()
 
     if page_refreshers is not None:
         def refresh_er_report_page():
