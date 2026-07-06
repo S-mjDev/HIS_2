@@ -31,6 +31,7 @@ XL_MUTED       = "64748B"
 XL_WHITE       = "FFFFFF"
 XL_SUCCESS     = "059669"
 XL_WARNING     = "D97706"
+XL_DANGER      = "DC2626"
 
 
 def _border(color=XL_BORDER, style="thin"):
@@ -115,6 +116,35 @@ def build_er_report_page(parent, page_refreshers=None):
               font=FONT["body"], bg=T["bg"],
               fg=T["danger"]).pack(anchor=W, pady=12)
         return frame
+    
+
+    def _arrival_time_color(time_str):
+        "Return hex color based on arrival time (for Excel cell fill)."
+
+        if not time_str:
+            return XL_TEXT
+        try:
+            time_str = time_str.strip().upper()
+            if "AM" in time_str or "PM" in time_str:
+                t = datetime.strptime(time_str, "%I:%M %p")
+            else:
+                t = datetime.strptime(time_str, "%H:%M")
+            hour = t.hour
+            minute = t.minute
+            total_minutes = hour * 60 + minute
+
+            if 0 <= total_minutes <= 419:
+                return "FF0000"  # Red for 12:00 AM - 6:59 AM
+            elif 420 <= total_minutes <= 899:
+                return "XL_TEXT" 
+            elif 900 <= total_minutes <= 1379:
+                return "2563EB"  # Blue for 3:00 PM - 9:59 PM
+            else:
+                return "FF0000"  # Red for 10:00 PM - 11:59 PM
+        except ValueError:
+            return XL_TEXT  # Default color for invalid time formats
+        
+
 
     # ── Excel export ──────────────────────────────────────
     def export_to_excel():
@@ -286,13 +316,21 @@ def build_er_report_page(parent, page_refreshers=None):
                     cell = ws.cell(row=row_idx, column=col_idx, value=value)
                     cell.fill      = row_fill
                     cell.border    = _border()
-                    cell.alignment = _align("center" if col_idx <= 3 else "left",
-                                            wrap=col_idx in (18, 25))
                     cell.font      = _font(size=9)
+                    
+                    if col_idx not in (4,5,6):
+                        cell.alignment = _align("center")
 
                     # Highlight Case Number column
                     if col_idx == 1 and value:
                         cell.font = _font(bold=True, color=XL_ACCENT, size=9)
+
+                    if col_idx == 3 and value:  # Arrival Time column
+                        color = _arrival_time_color(str(value))
+                        cell.font = _font(bold=True, color=color, size=9)
+
+                    if col_idx == 8 or col_idx == 9 or col_idx == 20 and value:
+                        cell.font = _font(bold=True, color=XL_DANGER, size=9)
 
                 ws.row_dimensions[row_idx].height = 16
 

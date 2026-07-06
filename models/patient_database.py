@@ -548,7 +548,7 @@ class PatientDatabase:
             print(f"Error updating ER visit: {e}")
             return False
 
-    def delete_patient(self, patient_id):
+    def delete_patient(self, patient_id, data):
         """Update patient record by ID."""
         query = (
             "UPDATE patients SET first_name = %s, middle_name = %s, last_name = %s, "
