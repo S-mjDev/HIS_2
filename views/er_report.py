@@ -251,9 +251,8 @@ def build_er_report_page(parent, page_refreshers=None):
                 ("Barangay",        18),
                 ("Municipality",    16),
                 ("Province",        14),
-                ("Phone",           14),
-                ("Email",           22),
-                ("Diagnosis",       22),
+                ("Diagnosis",       100),
+                ("Phone Number",    16),
                 ("Type of Service", 18),
                 ("Referral To",     18),
                 ("Seen by Doctor",  16),
@@ -298,9 +297,8 @@ def build_er_report_page(parent, page_refreshers=None):
                     patient.get("barangay",         ""),
                     patient.get("municipality",     ""),
                     patient.get("province",         ""),
-                    patient.get("phone",            ""),
-                    patient.get("email",            ""),
                     patient.get("diagnosis",        ""),
+                    patient.get("phone_number",      ""),
                     patient.get("service_type",     ""),
                     patient.get("referred_to",      ""),
                     patient.get("seen_by_doctor",   ""),
@@ -329,10 +327,36 @@ def build_er_report_page(parent, page_refreshers=None):
                         color = _arrival_time_color(str(value))
                         cell.font = _font(bold=True, color=color, size=9)
 
-                    if col_idx == 8 or col_idx == 9 or col_idx == 20 and value:
+                    if col_idx == 8 or col_idx == 9 or col_idx == 16 and value:
                         cell.font = _font(bold=True, color=XL_DANGER, size=9)
 
-                ws.row_dimensions[row_idx].height = 16
+                # With dynamic height based on content:
+                max_lines = 1
+                for col_idx, value in enumerate(row_data, start=1):
+                    if value and col_idx in (18, 25):  # Diagnosis=18, Medical History=25
+                        lines = len(str(value)) // 45 + 1  # ~45 chars per line
+                        max_lines = max(max_lines, lines)
+                ws.row_dimensions[row_idx].height = max(16, max_lines * 15)
+
+            # ── Auto-fit column widths ─────────────────────
+            for col_idx, (label, min_width) in enumerate(headers, start=1):
+                col_letter = get_column_letter(col_idx)
+                max_length = len(label)  # start with header length
+
+                for row_idx in range(header_row + 1,
+                                     header_row + len(patients) + 1):
+                    cell_value = ws.cell(row=row_idx, column=col_idx).value
+                    if cell_value:
+                        # Handle multi-line content
+                        lines = str(cell_value).split("\n")
+                        cell_max = max(len(line) for line in lines)
+                        max_length = max(max_length, cell_max)
+
+                # Apply width with padding, cap at 60 to avoid ultra-wide columns
+                fitted_width = min(max_length + 4, 60)
+                # Never go below the defined minimum width
+                ws.column_dimensions[col_letter].width = max(fitted_width, min_width)
+
 
             # ── Freeze panes & auto-filter ─────────────────
             ws.freeze_panes = "A6"

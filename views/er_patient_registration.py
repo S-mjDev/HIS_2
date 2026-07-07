@@ -136,12 +136,25 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     emergency_entry   = fld(g2, "Emergency Contact", 1, 2)
 
     g3 = section("ER Details")
-    arrival_time_entry = fld(g3, "Time",            0, 0)
+    arrival_time_entry = fld(g3, "Arrival Time",            0, 0)
+    arrival_time_entry.insert(0, datetime.now().strftime("%I:%M %p"))
+    arrival_time_entry.config(fg=T["muted"])
+    def on_focus_in(e):
+        if arrival_time_entry.get() == datetime.now().strftime("%I:%M %p"):
+            arrival_time_entry.delete(0, END)
+            arrival_time_entry.config(fg=T["entry_fg"])
+    def on_focus_out(e):
+        if not arrival_time_entry.get().strip():
+            arrival_time_entry.insert(0, datetime.now().strftime("%I:%M %p"))
+            arrival_time_entry.config(fg=T["muted"])
+    
+    arrival_time_entry.bind("<FocusIn>", on_focus_in)
+    arrival_time_entry.bind("<FocusOut>", on_focus_out)
     age_entry          = fld(g3, "Age",             0, 1)
     diagnosis_entry    = fld(g3, "Diagnosis",       0, 2)
     service_type_entry = fld(g3, "Type of Service", 1, 0)
     referred_to_entry  = fld(g3, "Referral To",     1, 1)
-    seen_by_entry      = fld(g3, "S/E by Doctor",   1, 2)
+    seen_by_entry      = fld(g3, "Seen by Doctor",   1, 2)
     time_if_admit_entry= fld(g3, "Time if Admit",   2, 0)
     doctor_entry       = fld(g3, "Doctor",          2, 1)
     disposition_entry  = fld(g3, "Disposition",     2, 2)
