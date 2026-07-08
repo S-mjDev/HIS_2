@@ -12,7 +12,7 @@ if ROOT_DIR not in sys.path:
 from utils.theme import T, FONT
 from utils.widgets import mk_entry, mk_btn, mk_combo, page_header, section_label
 from utils.validators import (
-    validate_email, validate_date, format_birthdate_entry
+    validate_email, validate_date, format_birthdate_entry, format_time_entry
 )
 from models.patient_database import PatientDatabase
 
@@ -89,7 +89,7 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
         g.pack(fill=X, padx=20, pady=(0, 16))
         return g
 
-    def fld(grid, label, row, col=0, combo_var=None, combo_vals=None, show=None, date=False):
+    def fld(grid, label, row, col=0, combo_var=None, combo_vals=None, show=None, date=False, time_field=False):
         c = col
         Label(grid, text=label.upper(), font=FONT["tag"],
               bg=T["panel"], fg=T["muted"]).grid(
@@ -98,6 +98,8 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
             w = mk_combo(grid, combo_var, combo_vals, width=24)
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=6,
                    padx=(0 if c == 0 else 16, 16))
+            if time_field or "TIME" in label.upper():
+                w.bind("<KeyRelease>", lambda e, x=w: format_time_entry(x))
         elif date and DateEntry:
             w = DateEntry(grid, width=24, date_pattern="mm-dd-yyyy", font=FONT["body"],
                           background=T["accent"], foreground=T["white"],
@@ -111,6 +113,8 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
                    padx=(0 if c == 0 else 16, 16))
             if date:
                 w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
+            if time_field or "TIME" in label.upper():
+                w.bind("<KeyRelease>", lambda e, x=w: format_time_entry(x))
         return w
 
     g1 = section("Personal Information")
@@ -152,7 +156,8 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     arrival_time_entry.bind("<FocusOut>", on_focus_out)
     age_entry          = fld(g3, "Age",             0, 1)
     diagnosis_entry    = fld(g3, "Diagnosis",       0, 2)
-    service_type_entry = fld(g3, "Type of Service", 1, 0)
+    type_of_service_var = StringVar(value="MEDICINE")
+    service_type_entry = fld(g3, "Type of Service", 1, 0, combo_var=type_of_service_var, combo_vals=["MEDICINE", "SURGICAL", "OB-GYNE", "PEDIATRICS", "OTHERS"])
     referred_to_entry  = fld(g3, "Referral To",     1, 1)
     seen_by_entry      = fld(g3, "Seen by Doctor",   1, 2)
     time_if_admit_entry= fld(g3, "Time if Admit",   2, 0)

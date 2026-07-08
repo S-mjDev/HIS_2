@@ -70,6 +70,19 @@ def format_birthdate_entry(entry_widget):
             new_cursor = len(formatted)
         entry_widget.icursor(new_cursor)
 
+def format_time_entry(widget):
+    """Automatically adds a space before AM/PM as the user types and updates color."""
+    current_text = widget.get()
+    cursor_pos = widget.index("insert")
+    
+    # Matches a digit followed directly by a letter (e.g., "12:00PM" -> "12:00 PM")
+    formatted_text = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', current_text)
+    
+    if current_text != formatted_text:
+        widget.delete(0, "end")
+        widget.insert(0, formatted_text)
+        widget.icursor(cursor_pos + 1)
+        current_text = formatted_text
 
 def uppercase_text_widget(text_widget):
     """Convert Text widget input to uppercase."""

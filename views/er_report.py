@@ -10,28 +10,26 @@ from utils.validators import validate_date
 try:
     import openpyxl
     from openpyxl.workbook import Workbook
-    from openpyxl.styles import (
-        PatternFill, Font, Alignment, Border, Side, GradientFill
-    )
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 except ImportError:
     openpyxl = None
 
 
-# ── Colour palette (matches app theme) ───────────────────
-XL_ACCENT      = "2563EB"   # blue
-XL_ACCENT_DARK = "1D4ED8"
-XL_SIDEBAR     = "1A2332"   # dark navy
-XL_HEADING_BG  = "F1F5F9"   # light grey
-XL_ROW_EVEN    = "F8FAFC"
-XL_ROW_ODD     = "FFFFFF"
-XL_BORDER      = "E2E8F0"
-XL_TEXT        = "1E293B"
-XL_MUTED       = "64748B"
-XL_WHITE       = "FFFFFF"
-XL_SUCCESS     = "059669"
-XL_WARNING     = "D97706"
-XL_DANGER      = "DC2626"
+# ── Colour palette — ALL must be 8-char aRGB ─────────────
+XL_ACCENT      = "FF2563EB"
+XL_ACCENT_DARK = "FF1D4ED8"
+XL_SIDEBAR     = "FF1A2332"
+XL_HEADING_BG  = "FFF1F5F9"
+XL_ROW_EVEN    = "FFF8FAFC"
+XL_ROW_ODD     = "FFFFFFFF"
+XL_BORDER      = "FFE2E8F0"
+XL_TEXT        = "FF1E293B"
+XL_MUTED       = "FF64748B"
+XL_WHITE       = "FFFFFFFF"
+XL_SUCCESS     = "FF059669"
+XL_WARNING     = "FFD97706"
+XL_DANGER      = "FFDC2626"
 
 
 def _border(color=XL_BORDER, style="thin"):
@@ -42,11 +40,51 @@ def _fill(hex_color):
     return PatternFill("solid", fgColor=hex_color)
 
 def _font(bold=False, color=XL_TEXT, size=9, italic=False):
-    return Font(name="Calibri", bold=bold, color=color,
-                size=size, italic=italic)
+    return Font(name="Calibri", bold=bold, color=color, size=size, italic=italic)
 
 def _align(h="left", v="center", wrap=False):
     return Alignment(horizontal=h, vertical=v, wrap_text=wrap)
+
+
+def _arrival_time_color(time_str):
+    """Return 8-char aRGB hex based on arrival time range.
+    12:00 AM – 6:59 AM  → RED
+    7:00 AM  – 2:59 PM  → BLACK
+    3:00 PM  – 10:59 PM → BLUE
+    11:00 PM – 11:59 PM → RED
+    """
+    if not time_str:
+        return XL_TEXT
+    try:    
+        ts = str(time_str).strip().upper()
+        if "AM" in ts or "PM" in ts:
+            t = datetime.strptime(ts, "%I:%M %p")
+        else:
+            t = datetime.strptime(ts, "%H:%M")
+        total_minutes = t.hour * 60 + t.minute
+        if 0 <= total_minutes <= 419:        # 12:00 AM – 6:59 AM
+            return "FFDC2626"                # RED
+        elif 420 <= total_minutes <= 899:    # 7:00 AM  – 2:59 PM
+            return XL_TEXT                   # BLACK
+        elif 900 <= total_minutes <= 1379:   # 3:00 PM  – 10:59 PM
+            return "FF2563EB"                # BLUE
+        else:                                # 11:00 PM – 11:59 PM
+            return "FFDC2626"                # RED
+    except ValueError:
+        return XL_TEXT
+
+
+def _service_type_color(service_str):
+    """Return (fill_aRGB, text_aRGB) based on Type of Service."""
+    colors = {
+        "MEDICINE":   ("FFD1FAE5", "FF065F46"),  # green
+        "SURGICAL":   ("FFFEE2E2", "FFB91C1C"),  # red
+        "OB-GYNE":    ("FFFDF4FF", "FF86198F"),  # magenta
+        "PEDIATRICS": ("FFFEFCE8", "FF854D0E"),  # yellow
+        "OTHERS":     ("FFF1F5F9", "FF475569"),  # grey
+    }
+    key = str(service_str).strip().upper() if service_str else ""
+    return colors.get(key, ("FFFFFFFF", "FF1E293B"))
 
 
 def build_er_report_page(parent, page_refreshers=None):
@@ -60,8 +98,7 @@ def build_er_report_page(parent, page_refreshers=None):
     content.pack(fill=BOTH, expand=True, padx=24, pady=16)
 
     def _normalize_date(date_text):
-        for fmt in ["%m-%d-%Y", "%m/%d/%Y", "%Y-%m-%d",
-                    "%B %d, %Y", "%b %d, %Y"]:
+        for fmt in ["%m-%d-%Y", "%m/%d/%Y", "%Y-%m-%d", "%B %d, %Y", "%b %d, %Y"]:
             try:
                 return datetime.strptime(date_text, fmt).strftime("%Y-%m-%d")
             except ValueError:
@@ -73,86 +110,46 @@ def build_er_report_page(parent, page_refreshers=None):
             db_container["instance"] = PatientDatabase()
             return True
         except Exception as e:
-            messagebox.showerror("Database Error",
-                                 f"Failed to refresh database:\n{e}")
+            messagebox.showerror("Database Error", f"Failed to refresh database:\n{e}")
             return False
 
     # ── Filter card ───────────────────────────────────────
     filter_card = Frame(content, bg=T["panel"],
-                        highlightthickness=1,
-                        highlightbackground=T["border"])
+                        highlightthickness=1, highlightbackground=T["border"])
     filter_card.pack(fill=X, pady=(0, 18))
     fb = Frame(filter_card, bg=T["panel"])
     fb.pack(fill=X, padx=20, pady=16)
 
     Label(fb, text="EXPORT FILTER", font=FONT["tag"],
-          bg=T["panel"], fg=T["accent"]).grid(
-        row=0, column=0, columnspan=4, sticky=W)
-    Label(fb, text="Exports ER-registered patients only.",
-          font=FONT["body"], bg=T["panel"],
-          fg=T["muted"]).grid(row=1, column=0, columnspan=4,
-                              sticky=W, pady=(4, 12))
-
+          bg=T["panel"], fg=T["accent"]).grid(row=0, column=0, columnspan=4, sticky=W)
+    Label(fb, text="Exports ER-registered patients only.", font=FONT["body"],
+          bg=T["panel"], fg=T["muted"]).grid(row=1, column=0, columnspan=4,
+                                              sticky=W, pady=(4, 12))
     Label(fb, text="START DATE", font=FONT["tag"],
-          bg=T["panel"], fg=T["muted"]).grid(
-        row=2, column=0, sticky=W, pady=(0, 4))
+          bg=T["panel"], fg=T["muted"]).grid(row=2, column=0, sticky=W, pady=(0, 4))
     from_entry = mk_entry(fb, width=18)
     from_entry.grid(row=3, column=0, sticky=W)
-
     Label(fb, text="END DATE", font=FONT["tag"],
-          bg=T["panel"], fg=T["muted"]).grid(
-        row=2, column=1, sticky=W, pady=(0, 4), padx=(24, 0))
+          bg=T["panel"], fg=T["muted"]).grid(row=2, column=1, sticky=W,
+                                              pady=(0, 4), padx=(24, 0))
     to_entry = mk_entry(fb, width=18)
     to_entry.grid(row=3, column=1, sticky=W, padx=(24, 0))
-
-    Label(fb, text="Format: MM-DD-YYYY or YYYY-MM-DD",
-          font=FONT["small"], bg=T["panel"],
-          fg=T["muted"]).grid(row=4, column=0, columnspan=3,
-                              sticky=W, pady=(6, 0))
+    Label(fb, text="Format: MM-DD-YYYY or YYYY-MM-DD", font=FONT["small"],
+          bg=T["panel"], fg=T["muted"]).grid(row=4, column=0, columnspan=3,
+                                              sticky=W, pady=(6, 0))
 
     if openpyxl is None:
-        Label(content,
-              text="⚠  openpyxl is required.  Run: pip install openpyxl",
-              font=FONT["body"], bg=T["bg"],
-              fg=T["danger"]).pack(anchor=W, pady=12)
+        Label(content, text="⚠  openpyxl is required.  Run: pip install openpyxl",
+              font=FONT["body"], bg=T["bg"], fg=T["danger"]).pack(anchor=W, pady=12)
         return frame
-    
-
-    def _arrival_time_color(time_str):
-        "Return hex color based on arrival time (for Excel cell fill)."
-
-        if not time_str:
-            return XL_TEXT
-        try:
-            time_str = time_str.strip().upper()
-            if "AM" in time_str or "PM" in time_str:
-                t = datetime.strptime(time_str, "%I:%M %p")
-            else:
-                t = datetime.strptime(time_str, "%H:%M")
-            hour = t.hour
-            minute = t.minute
-            total_minutes = hour * 60 + minute
-
-            if 0 <= total_minutes <= 419:
-                return "FF0000"  # Red for 12:00 AM - 6:59 AM
-            elif 420 <= total_minutes <= 899:
-                return "XL_TEXT" 
-            elif 900 <= total_minutes <= 1379:
-                return "2563EB"  # Blue for 3:00 PM - 9:59 PM
-            else:
-                return "FF0000"  # Red for 10:00 PM - 11:59 PM
-        except ValueError:
-            return XL_TEXT  # Default color for invalid time formats
-        
-
 
     # ── Excel export ──────────────────────────────────────
     def export_to_excel():
         if not refresh_database():
             return
 
-        start_raw = from_entry.get().strip()
-        end_raw   = to_entry.get().strip()
+        start_raw  = from_entry.get().strip()
+        end_raw    = to_entry.get().strip()
         start_date = end_date = None
 
         if start_raw:
@@ -168,15 +165,11 @@ def build_er_report_page(parent, page_refreshers=None):
                 return
             end_date = _normalize_date(end_raw)
         if start_date and end_date and start_date > end_date:
-            messagebox.showerror("Invalid Range",
-                "Start date cannot be after end date.")
+            messagebox.showerror("Invalid Range", "Start date cannot be after end date.")
             return
 
         patients = db_container["instance"].get_patients(
-            er_only=True,
-            start_date=start_date,
-            end_date=end_date
-        )
+            er_only=True, start_date=start_date, end_date=end_date)
         if not patients:
             messagebox.showinfo("No Data",
                 "No ER patient records found for the selected range.")
@@ -205,63 +198,59 @@ def build_er_report_page(parent, page_refreshers=None):
                 date_label = f"  Up to  {end_date}"
 
             ws.merge_cells("A1:Z1")
-            t1 = ws["A1"]
-            t1.value = "HOSPITAL INFORMATION SYSTEM"
-            t1.font      = _font(bold=True, color=XL_WHITE, size=14)
-            t1.fill      = _fill(XL_SIDEBAR)
-            t1.alignment = _align("center")
+            ws["A1"].value     = "HOSPITAL INFORMATION SYSTEM"
+            ws["A1"].font      = _font(bold=True, color=XL_WHITE, size=14)
+            ws["A1"].fill      = _fill(XL_SIDEBAR)
+            ws["A1"].alignment = _align("center")
 
             ws.merge_cells("A2:Z2")
-            t2 = ws["A2"]
-            t2.value = f"ER PATIENT REPORT{date_label}"
-            t2.font      = _font(bold=True, color=XL_WHITE, size=11)
-            t2.fill      = _fill(XL_ACCENT)
-            t2.alignment = _align("center")
+            ws["A2"].value     = f"ER PATIENT REPORT{date_label}"
+            ws["A2"].font      = _font(bold=True, color=XL_WHITE, size=11)
+            ws["A2"].fill      = _fill(XL_ACCENT)
+            ws["A2"].alignment = _align("center")
 
             ws.merge_cells("A3:Z3")
-            t3 = ws["A3"]
-            t3.value = (
-                f"Generated: {datetime.now().strftime('%B %d, %Y  %I:%M %p')}  "
+            ws["A3"].value = (
+                f"Generated: {datetime.now().strftime('%B %d, %Y  %I:%M %p')}"
                 f"  |  Total Records: {len(patients)}"
             )
-            t3.font      = _font(italic=True, color=XL_MUTED, size=9)
-            t3.fill      = _fill(XL_HEADING_BG)
-            t3.alignment = _align("center")
+            ws["A3"].font      = _font(italic=True, color=XL_MUTED, size=9)
+            ws["A3"].fill      = _fill(XL_HEADING_BG)
+            ws["A3"].alignment = _align("center")
 
             ws.row_dimensions[1].height = 26
             ws.row_dimensions[2].height = 22
             ws.row_dimensions[3].height = 16
-
             ws.append([])  # blank row 4
 
             # ── Column headers (row 5) ────────────────────
             headers = [
-                ("Case No.",        10),
-                ("Patient ID",      12),
-                ("Arrival Time",    14),
-                ("First Name",      16),
-                ("Middle Name",     14),
-                ("Last Name",       16),
-                ("Age",              6),
-                ("Gender",           9),
-                ("Civil Status",    13),
-                ("Birth Date",      14),
-                ("Birth Place",     16),
-                ("Nationality",     13),
-                ("Barangay",        18),
-                ("Municipality",    16),
-                ("Province",        14),
-                ("Diagnosis",       100),
-                ("Phone Number",    16),
-                ("Type of Service", 18),
-                ("Referral To",     18),
-                ("Seen by Doctor",  16),
-                ("Disposition",     16),
-                ("Time if Admit",   14),
-                ("Doctor",          18),
-                ("Medical History", 22),
-                ("Registered By",   14),
-                ("Registration Date", 20),
+                ("Case No.",         10),
+                ("Patient ID",       12),
+                ("Arrival Time",     14),
+                ("First Name",       16),
+                ("Middle Name",      14),
+                ("Last Name",        16),
+                ("Age",               6),
+                ("Gender",            9),
+                ("Civil Status",     13),
+                ("Birth Date",       14),
+                ("Birth Place",      16),
+                ("Nationality",      13),
+                ("Barangay",         18),
+                ("Municipality",     16),
+                ("Province",         14),
+                ("Diagnosis",        30),
+                ("Phone Number",     16),
+                ("Type of Service",  18),
+                ("Referral To",      18),
+                ("Seen by Doctor",   16),
+                ("Disposition",      16),
+                ("Time if Admit",    14),
+                ("Doctor",           18),
+                ("Medical History",  22),
+                ("Registered By",    14),
+                ("Registration Date",20),
             ]
 
             header_row = 5
@@ -271,14 +260,14 @@ def build_er_report_page(parent, page_refreshers=None):
                 cell.fill      = _fill(XL_ACCENT)
                 cell.alignment = _align("center")
                 cell.border    = _border(XL_ACCENT_DARK)
-                col_letter = get_column_letter(col_idx)
-                ws.column_dimensions[col_letter].width = width
+                ws.column_dimensions[get_column_letter(col_idx)].width = width
 
             ws.row_dimensions[header_row].height = 20
 
             # ── Data rows ─────────────────────────────────
-            for row_idx, patient in enumerate(patients.values(), start=header_row + 1):
-                is_even = (row_idx - header_row) % 2 == 0
+            for row_idx, patient in enumerate(patients.values(),
+                                              start=header_row + 1):
+                is_even  = (row_idx - header_row) % 2 == 0
                 row_fill = _fill(XL_ROW_EVEN if is_even else XL_ROW_ODD)
 
                 row_data = [
@@ -298,7 +287,7 @@ def build_er_report_page(parent, page_refreshers=None):
                     patient.get("municipality",     ""),
                     patient.get("province",         ""),
                     patient.get("diagnosis",        ""),
-                    patient.get("phone_number",      ""),
+                    patient.get("phone",            ""),
                     patient.get("service_type",     ""),
                     patient.get("referred_to",      ""),
                     patient.get("seen_by_doctor",   ""),
@@ -311,55 +300,56 @@ def build_er_report_page(parent, page_refreshers=None):
                 ]
 
                 for col_idx, value in enumerate(row_data, start=1):
-                    cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                    cell           = ws.cell(row=row_idx, column=col_idx, value=value)
                     cell.fill      = row_fill
                     cell.border    = _border()
                     cell.font      = _font(size=9)
-                    
-                    if col_idx not in (4,5,6):
-                        cell.alignment = _align("center")
+                    # Names left-aligned, everything else centered
+                    cell.alignment = _align(
+                        "left" if col_idx in (4, 5, 6, 16, 24) else "center",
+                        wrap=col_idx in (16, 24)   # Diagnosis & Medical History
+                    )
 
-                    # Highlight Case Number column
+                    # Case Number — blue bold
                     if col_idx == 1 and value:
                         cell.font = _font(bold=True, color=XL_ACCENT, size=9)
 
-                    if col_idx == 3 and value:  # Arrival Time column
+                    # Arrival Time — colour by time range
+                    elif col_idx == 3 and value:
                         color = _arrival_time_color(str(value))
                         cell.font = _font(bold=True, color=color, size=9)
 
-                    if col_idx == 8 or col_idx == 9 or col_idx == 16 and value:
+                    # Type of Service — colour by service type
+                    elif col_idx == 18 and value:
+                        fill_hex, text_hex = _service_type_color(str(value))
+                        cell.fill      = _fill(fill_hex)
+                        cell.font      = _font(bold=True, color=text_hex, size=9)
+                        cell.alignment = _align("center")
+                    
+                    elif col_idx in (8, 9, 19) and value:
                         cell.font = _font(bold=True, color=XL_DANGER, size=9)
 
-                # With dynamic height based on content:
+                # Dynamic row height for wrapped columns
                 max_lines = 1
-                for col_idx, value in enumerate(row_data, start=1):
-                    if value and col_idx in (18, 25):  # Diagnosis=18, Medical History=25
-                        lines = len(str(value)) // 45 + 1  # ~45 chars per line
-                        max_lines = max(max_lines, lines)
+                for ci, val in enumerate(row_data, start=1):
+                    if val and ci in (16, 24):
+                        max_lines = max(max_lines, len(str(val)) // 45 + 1)
                 ws.row_dimensions[row_idx].height = max(16, max_lines * 15)
 
             # ── Auto-fit column widths ─────────────────────
             for col_idx, (label, min_width) in enumerate(headers, start=1):
                 col_letter = get_column_letter(col_idx)
-                max_length = len(label)  # start with header length
-
-                for row_idx in range(header_row + 1,
-                                     header_row + len(patients) + 1):
-                    cell_value = ws.cell(row=row_idx, column=col_idx).value
-                    if cell_value:
-                        # Handle multi-line content
-                        lines = str(cell_value).split("\n")
-                        cell_max = max(len(line) for line in lines)
-                        max_length = max(max_length, cell_max)
-
-                # Apply width with padding, cap at 60 to avoid ultra-wide columns
-                fitted_width = min(max_length + 4, 60)
-                # Never go below the defined minimum width
-                ws.column_dimensions[col_letter].width = max(fitted_width, min_width)
-
+                max_length = len(label)
+                for r in range(header_row + 1, header_row + len(patients) + 1):
+                    val = ws.cell(row=r, column=col_idx).value
+                    if val:
+                        lines      = str(val).split("\n")
+                        max_length = max(max_length, max(len(l) for l in lines))
+                fitted = min(max_length + 4, 60)
+                ws.column_dimensions[col_letter].width = max(fitted, min_width)
 
             # ── Freeze panes & auto-filter ─────────────────
-            ws.freeze_panes = "A6"
+            ws.freeze_panes   = "A6"
             ws.auto_filter.ref = (
                 f"A{header_row}:{get_column_letter(len(headers))}{header_row}"
             )
@@ -369,15 +359,15 @@ def build_er_report_page(parent, page_refreshers=None):
             ws.merge_cells(
                 f"A{footer_row}:{get_column_letter(len(headers))}{footer_row}"
             )
-            footer = ws[f"A{footer_row}"]
-            footer.value = (
+            footer            = ws[f"A{footer_row}"]
+            footer.value      = (
                 f"END OF REPORT  |  Total: {len(patients)} record(s)  |  "
                 f"Exported: {datetime.now().strftime('%B %d, %Y')}"
             )
-            footer.font      = _font(italic=True, color=XL_MUTED, size=8)
-            footer.fill      = _fill(XL_HEADING_BG)
-            footer.alignment = _align("center")
-            footer.border    = _border()
+            footer.font       = _font(italic=True, color=XL_MUTED, size=8)
+            footer.fill       = _fill(XL_HEADING_BG)
+            footer.alignment  = _align("center")
+            footer.border     = _border()
 
             # ── Print settings ─────────────────────────────
             ws.page_setup.orientation = "landscape"
@@ -385,22 +375,36 @@ def build_er_report_page(parent, page_refreshers=None):
             ws.page_setup.fitToWidth  = 1
             ws.page_setup.fitToHeight = 0
 
+                        # ── Sheet protection (lock for editing) ────────
+            ws.protection.sheet         = True
+            ws.protection.password      = "qphn2025"
+            ws.protection.selectLockedCells   = False  # allow selecting locked cells
+            ws.protection.selectUnlockedCells = False  # allow selecting unlocked cells
+            ws.protection.formatCells         = True   # block formatting
+            ws.protection.formatColumns       = True   # block column resize
+            ws.protection.formatRows          = True   # block row resize
+            ws.protection.insertRows          = True   # block insert rows
+            ws.protection.insertColumns       = True   # block insert columns
+            ws.protection.deleteRows          = True   # block delete rows
+            ws.protection.deleteColumns       = True   # block delete columns
+            ws.protection.sort                = True   # block sorting
+            ws.protection.autoFilter          = False   # block filter changes
+
             wb.save(file_path)
             messagebox.showinfo("Export Complete",
                 f"ER report saved to:\n{file_path}\n\n"
                 f"{len(patients)} record(s) exported.")
 
         except Exception as e:
-            messagebox.showerror("Export Error",
-                                 f"Failed to export report:\n{e}")
+            messagebox.showerror("Export Error", f"Failed to export report:\n{e}")
 
     # ── Buttons ───────────────────────────────────────────
     Label(content,
           text="Export all ER patient registration data to a styled Excel worksheet.",
           font=FONT["body"], bg=T["bg"], fg=T["text"]).pack(anchor=W, pady=(0, 4))
 
-    status_lbl = Label(content, text="",
-                       font=FONT["small"], bg=T["bg"], fg=T["muted"])
+    status_lbl = Label(content, text="", font=FONT["small"],
+                       bg=T["bg"], fg=T["muted"])
     status_lbl.pack(anchor=W, pady=(0, 12))
 
     def refresh_with_status():
