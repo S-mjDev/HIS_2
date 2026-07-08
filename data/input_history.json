@@ -1,5 +1,6 @@
 {
   "barangay": [
+    "tagbacan ibaba",
     "DOONGAN ILAYA",
     "dahican",
     "madulao",
@@ -18,8 +19,7 @@
     "10",
     "LATANGAN",
     "7",
-    "TAGABAS IBABA",
-    "10"
+    "TAGABAS IBABA"
   ],
   "municipality": [
     "CATANAUAN",
@@ -64,6 +64,7 @@
     "QUEZON"
   ],
   "birth_place": [
+    "CATANAUAN",
     "catanauan",
     "rizal",
     "catanauan",
@@ -82,8 +83,7 @@
     "batangas",
     "catanauan",
     "mulanay",
-    "CATANAUAN",
-    "cat"
+    "CATANAUAN"
   ],
   "nationality": [
     "FILIPINO"
