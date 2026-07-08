@@ -55,7 +55,7 @@ def _arrival_time_color(time_str):
     """
     if not time_str:
         return XL_TEXT
-    try:
+    try:    
         ts = str(time_str).strip().upper()
         if "AM" in ts or "PM" in ts:
             t = datetime.strptime(ts, "%I:%M %p")
