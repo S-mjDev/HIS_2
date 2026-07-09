@@ -31,11 +31,12 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
 
     page_header(frame, "ER Patient Registration", "Register a new patient into the ER system")
 
+    # ── Scrollable canvas (row 1) ─────────────────────────
     canvas = Canvas(frame, bg=T["bg"], highlightthickness=0)
     sb = ttk.Scrollbar(frame, orient=VERTICAL, command=canvas.yview)
+    canvas.configure(yscrollcommand=sb.set)
     sb.pack(side=RIGHT, fill=Y)
     canvas.pack(side=LEFT, fill=BOTH, expand=True)
-    canvas.configure(yscrollcommand=sb.set)
 
     cf = Frame(canvas, bg=T["bg"])
     cw = canvas.create_window((0, 0), window=cf, anchor="nw")
@@ -56,48 +57,80 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     outer.pack(fill=BOTH, expand=True, padx=24, pady=16)
     outer.columnconfigure(0, weight=1)
 
+    # ── Patient ID + Case Number badge ────────────────────
     id_card = Frame(outer, bg=T["panel"],
                     highlightthickness=1, highlightbackground=T["border"])
-    id_card.pack(fill=X, pady=(0, 14))
+    id_card.pack(fill=X, pady=(0, 16))
     id_inner = Frame(id_card, bg=T["panel"])
-    id_inner.pack(fill=X, padx=20, pady=12)
-    
-    Label(id_inner, text="CASE NUMBER",
-            font=FONT["tag"], bg=T["panel"], fg=T["muted"]).pack(side=LEFT, padx=(0, 8))
-    case_number_label = Label(id_inner, text=db.generate_next_case_number(),
+    id_inner.pack(fill=X, padx=20, pady=14)
+
+    # Case Number
+    cn_frame = Frame(id_inner, bg=T["success_lt"],
+                     highlightthickness=1, highlightbackground=T["success"])
+    cn_frame.pack(side=LEFT, padx=(0, 20))
+    Label(cn_frame, text="CASE NO.", font=FONT["tag"],
+          bg=T["success_lt"], fg=T["success"], padx=10, pady=2).pack(anchor=W)
+    case_number_label = Label(cn_frame,
+                              text=db.generate_next_case_number()
+                                   if hasattr(db, 'generate_next_case_number')
+                                   else "ER-AUTO",
                               font=FONT["mono"],
                               bg=T["success_lt"], fg=T["success"],
-                              padx=14, pady=4,
-                              highlightthickness=1, highlightbackground=T["success"])
-    case_number_label.pack(side=LEFT, padx=(0, 20))
+                              padx=10, pady=4)
+    case_number_label.pack(anchor=W)
 
-    Label(id_inner, text="PATIENT ID",
-          font=FONT["tag"], bg=T["panel"], fg=T["muted"]).pack(side=LEFT, padx=(0, 8))
-    patient_id_label = Label(id_inner, text="Assign on save",
+    # Patient ID
+    pid_frame = Frame(id_inner, bg=T["accent_lt"],
+                      highlightthickness=1, highlightbackground=T["accent"])
+    pid_frame.pack(side=LEFT)
+    Label(pid_frame, text="PATIENT ID", font=FONT["tag"],
+          bg=T["accent_lt"], fg=T["accent"], padx=10, pady=2).pack(anchor=W)
+    patient_id_label = Label(pid_frame, text="Assign on save",
                              font=FONT["mono"],
                              bg=T["accent_lt"], fg=T["accent"],
-                             padx=14, pady=4,
-                             highlightthickness=1, highlightbackground=T["accent"])
-    patient_id_label.pack(side=LEFT)
+                             padx=10, pady=4)
+    patient_id_label.pack(anchor=W)
 
-    def section(title):
+    # Registered by (right side)
+    reg_frame = Frame(id_inner, bg=T["panel"])
+    reg_frame.pack(side=RIGHT)
+    Label(reg_frame, text="REGISTERED BY", font=FONT["tag"],
+          bg=T["panel"], fg=T["muted"]).pack(anchor=E)
+    Label(reg_frame,
+          text=(user_data.get("username") or "").upper(),
+          font=FONT["body_b"], bg=T["panel"], fg=T["text"]).pack(anchor=E)
+    Label(reg_frame,
+          text=datetime.now().strftime("%B %d, %Y"),
+          font=FONT["small"], bg=T["panel"], fg=T["muted"]).pack(anchor=E)
+
+    def section(title, color=None):
         c = Frame(outer, bg=T["panel"],
                   highlightthickness=1, highlightbackground=T["border"])
         c.pack(fill=X, pady=(0, 12))
-        section_label(c, title)
+        # Colored section title bar
+        bar = Frame(c, bg=color or T["accent"], height=2)
+        bar.pack(fill=X)
+        Label(c, text=title.upper(), font=FONT["tag"],
+              bg=T["panel"], fg=color or T["accent"]).pack(
+            anchor=W, padx=20, pady=(10, 2))
+        Frame(c, bg=T["border"], height=1).pack(fill=X, padx=20, pady=(0, 8))
         g = Frame(c, bg=T["panel"])
         g.pack(fill=X, padx=20, pady=(0, 16))
+        g.columnconfigure(0, weight=1)
+        g.columnconfigure(1, weight=1)
+        g.columnconfigure(2, weight=1)
         return g
 
-    def fld(grid, label, row, col=0, combo_var=None, combo_vals=None, show=None, date=False, time_field=False):
+    def fld(grid, label, row, col=0, combo_var=None, combo_vals=None, show=None, date=False, time_field=False, span=1):
         c = col
+        px_l = 0 if c == 0 else 16
         Label(grid, text=label.upper(), font=FONT["tag"],
               bg=T["panel"], fg=T["muted"]).grid(
-            row=row*2, column=c, sticky=W, pady=(10, 3), padx=(0 if c == 0 else 16, 8))
+            row=row*2, column=c, sticky=W, pady=(10, 3), padx=(px_l, 8), columnspan=span)
         if combo_var and combo_vals:
             w = mk_combo(grid, combo_var, combo_vals, width=24)
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=6,
-                   padx=(0 if c == 0 else 16, 16))
+                   padx=(0 if c == 0 else 16, 16), columnspan=span)
             if time_field or "TIME" in label.upper():
                 w.bind("<KeyRelease>", lambda e, x=w: format_time_entry(x))
         elif date and DateEntry:
@@ -105,12 +138,12 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
                           background=T["accent"], foreground=T["white"],
                           headersbackground=T["accent"])
             w.grid(row=row*2+1, column=c, sticky=EW,
-                   padx=(0 if c == 0 else 16, 16))
+                   padx=(0 if c == 0 else 16, 16), columnspan=span)
             w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
         else:
             w = mk_entry(grid, width=24, show=show)
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=7,
-                   padx=(0 if c == 0 else 16, 16))
+                   padx=(0 if c == 0 else 16, 16), columnspan=span)
             if date:
                 w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
             if time_field or "TIME" in label.upper():
@@ -121,8 +154,19 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     name_entry        = fld(g1, "First Name",   0, 0)
     middle_name_entry = fld(g1, "Middle Name",  0, 1)
     last_name_entry   = fld(g1, "Last Name",    0, 2)
-    gender_var        = StringVar(value="MALE")
-    fld(g1, "Gender",       1, 0, combo_var=gender_var, combo_vals=["MALE", "FEMALE"])
+    gender_var = StringVar(value="MALE")
+    # Radio buttons for gender
+    Label(g1, text="GENDER", font=FONT["tag"],
+          bg=T["panel"], fg=T["muted"]).grid(
+        row=2, column=0, sticky=W, pady=(10, 3))
+    gender_frame = Frame(g1, bg=T["panel"])
+    gender_frame.grid(row=3, column=0, sticky=W, padx=(0, 16))
+    for opt in ["MALE", "FEMALE"]:
+        Radiobutton(gender_frame, text=opt, variable=gender_var, value=opt,
+                    font=FONT["body"], bg=T["panel"], fg=T["text"],
+                    activebackground=T["panel"], activeforeground=T["accent"],
+                    selectcolor=T["accent_lt"],
+                    cursor="hand2").pack(side=LEFT, padx=(0, 12))
     civil_status_var  = StringVar(value="SINGLE")
     fld(g1, "Civil Status", 1, 1, combo_var=civil_status_var,
         combo_vals=["SINGLE", "MARRIED", "WIDOWED", "DIVORCED"])
@@ -130,6 +174,8 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     nationality_entry.insert(0, "FILIPINO")
     birth_date_entry  = fld(g1, "Birth Date",   2, 0, date=True)
     birth_place_entry = fld(g1, "Birth Place",  2, 1)
+    age_entry          = fld(g1, "Age",             2, 2)
+
 
     g2 = section("Contact Information")
     phone_entry       = fld(g2, "Phone Number",      0, 0)
@@ -139,7 +185,7 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     province_entry    = fld(g2, "Province",          1, 1)
     emergency_entry   = fld(g2, "Emergency Contact", 1, 2)
 
-    g3 = section("ER Details")
+    g3 = section("ER Details", T["danger"])
     arrival_time_entry = fld(g3, "Arrival Time",            0, 0)
     arrival_time_entry.insert(0, datetime.now().strftime("%I:%M %p"))
     arrival_time_entry.config(fg=T["muted"])
@@ -154,15 +200,15 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     
     arrival_time_entry.bind("<FocusIn>", on_focus_in)
     arrival_time_entry.bind("<FocusOut>", on_focus_out)
-    age_entry          = fld(g3, "Age",             0, 1)
-    diagnosis_entry    = fld(g3, "Diagnosis",       0, 2)
+    diagnosis_entry    = fld(g3, "Diagnosis",       0, 1, span=2)
     type_of_service_var = StringVar(value="MEDICINE")
-    service_type_entry = fld(g3, "Type of Service", 1, 0, combo_var=type_of_service_var, combo_vals=["MEDICINE", "SURGICAL", "OB-GYNE", "PEDIATRICS", "OTHERS"])
+    service_type_entry = fld(g3, "Type of Service", 1, 0, combo_var=type_of_service_var, combo_vals=["MEDICINE", "SURGICAL", "OB-GYNE", "PEDIATRICS", "OTHERS"])    
     referred_to_entry  = fld(g3, "Referral To",     1, 1)
     seen_by_entry      = fld(g3, "Seen by Doctor",   1, 2)
     time_if_admit_entry= fld(g3, "Time if Admit",   2, 0)
     doctor_entry       = fld(g3, "Doctor",          2, 1)
-    disposition_entry  = fld(g3, "Disposition",     2, 2)
+    disposition_var = StringVar(value="")
+    disposition_entry  = fld(g3, "Disposition",     2, 2, combo_var=disposition_var, combo_vals=["", "ADMITTED", "DISCHARGED", "REFERRED", "ABSCONDED", "TRANSFER", "DECEASED"])
 
     all_histories = load_all_history()
 
