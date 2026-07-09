@@ -99,14 +99,22 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
     patient_id_entry.bind("<KeyRelease>", check_id)
 
     # ── Shared field builder ──────────────────────────────
-    def section_card(title):
+    def section_card(title, color=None):
         c = Frame(outer, bg=T["panel"],
                   highlightthickness=1, highlightbackground=T["border"])
         c.pack(fill=X, pady=(0, 12))
-        section_label(c, title)
+        # Colored section title bar
+        bar = Frame(c, bg=color or T["accent"], height=2)
+        bar.pack(fill=X)
+        Label(c, text=title.upper(), font=FONT["tag"],
+              bg=T["panel"], fg=color or T["accent"]).pack(
+            anchor=W, padx=20, pady=(10, 2))
+        Frame(c, bg=T["border"], height=1).pack(fill=X, padx=20, pady=(0, 8))
         g = Frame(c, bg=T["panel"])
         g.pack(fill=X, padx=20, pady=(0, 16))
-        
+        g.columnconfigure(0, weight=1)
+        g.columnconfigure(1, weight=1)
+        g.columnconfigure(2, weight=1)
         return g
 
     def fld(grid, label, row, col=0, combo_var=None, combo_vals=None, show=None, date=False):
@@ -132,6 +140,9 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
             if date and not DateEntry:
                 w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
         return w
+    
+    def is_placeholder(widget, placeholder):
+        return widget.get() == placeholder
 
     # ── Personal Information ──────────────────────────────
     g1 = section_card("Personal Information")
@@ -139,7 +150,17 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
     middle_name_entry = fld(g1, "Middle Name",  0, 1)
     last_name_entry   = fld(g1, "Last Name",    0, 2)
     gender_var        = StringVar(value="MALE")
-    fld(g1, "Gender",       1, 0, combo_var=gender_var, combo_vals=["MALE", "FEMALE"])
+    Label(g1, text="GENDER", font=FONT["tag"],
+          bg=T["panel"], fg=T["muted"]).grid(
+        row=2, column=0, sticky=W, pady=(10, 3))
+    gender_frame = Frame(g1, bg=T["panel"])
+    gender_frame.grid(row=3, column=0, sticky=W, padx=(0, 16))
+    for opt in ["MALE", "FEMALE"]:
+        Radiobutton(gender_frame, text=opt, variable=gender_var, value=opt,
+                    font=FONT["body"], bg=T["panel"], fg=T["text"],
+                    activebackground=T["panel"], activeforeground=T["accent"],
+                    selectcolor=T["accent_lt"],
+                    cursor="hand2").pack(side=LEFT, padx=(0, 12))
     civil_status_var  = StringVar(value="SINGLE")
     fld(g1, "Civil Status", 1, 1, combo_var=civil_status_var,
         combo_vals=["SINGLE", "MARRIED", "WIDOWED", "DIVORCED"])

@@ -72,55 +72,98 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
                              highlightthickness=1, highlightbackground=T["accent"])
     patient_id_label.pack(side=LEFT)
 
-    def section(title):
+    def section(title, color=None):
         c = Frame(outer, bg=T["panel"],
                   highlightthickness=1, highlightbackground=T["border"])
         c.pack(fill=X, pady=(0, 12))
-        section_label(c, title)
+        # Colored section title bar
+        bar = Frame(c, bg=color or T["accent"], height=2)
+        bar.pack(fill=X)
+        Label(c, text=title.upper(), font=FONT["tag"],
+              bg=T["panel"], fg=color or T["accent"]).pack(
+            anchor=W, padx=20, pady=(10, 2))
+        Frame(c, bg=T["border"], height=1).pack(fill=X, padx=20, pady=(0, 8))
         g = Frame(c, bg=T["panel"])
         g.pack(fill=X, padx=20, pady=(0, 16))
-        
+        g.columnconfigure(0, weight=1)
+        g.columnconfigure(1, weight=1)
+        g.columnconfigure(2, weight=1)
         return g
 
-    def fld(grid, label, row, col=0, combo_var=None, combo_vals=None, show=None, date=False):
+    def fld(grid, label, row, col=0, combo_var=None, show=None, combo_vals=None,
+            date=False, placeholder=None, span=1):
         c = col
+        px_l = 0 if col == 0 else 16
         Label(grid, text=label.upper(), font=FONT["tag"],
               bg=T["panel"], fg=T["muted"]).grid(
-            row=row*2, column=c, sticky=W, pady=(10, 3), padx=(0 if c == 0 else 16, 8))
+            row=row*2, column=col, columnspan=span,
+            sticky=W, pady=(10, 3), padx=(px_l, 8))
+
         if combo_var and combo_vals:
             w = mk_combo(grid, combo_var, combo_vals, width=24)
-            w.grid(row=row*2+1, column=c, sticky=EW, ipady=6,
-                   padx=(0 if c == 0 else 16, 16))
+            w.grid(row=row*2+1, column=col, columnspan=span,
+                   sticky=EW, ipady=6, padx=(px_l, 16))
         elif date and DateEntry:
             w = DateEntry(grid, width=24, date_pattern="mm-dd-yyyy", font=FONT["body"],
                           background=T["accent"], foreground=T["white"],
                           headersbackground=T["accent"])
             w.grid(row=row*2+1, column=c, sticky=EW,
                    padx=(0 if c == 0 else 16, 16))
-            w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
+            w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))            
         else:
             w = mk_entry(grid, width=24, show=show)
             w.grid(row=row*2+1, column=c, sticky=EW, ipady=7,
                    padx=(0 if c == 0 else 16, 16))
-            if date:
+            if date and not DateEntry:
                 w.bind("<KeyRelease>", lambda e, x=w: format_birthdate_entry(x))
+            # Placeholder
+            if placeholder:
+                w.insert(0, placeholder)
+                w.config(fg=T["muted"])
+                def _focus_in(e, widget=w, ph=placeholder):
+                    if widget.get() == ph:
+                        widget.delete(0, END)
+                        widget.config(fg=T["entry_fg"])
+                def _focus_out(e, widget=w, ph=placeholder):
+                    if not widget.get().strip():
+                        widget.insert(0, ph)
+                        widget.config(fg=T["muted"])
+                w.bind("<FocusIn>",  _focus_in)
+                w.bind("<FocusOut>", _focus_out)
         return w
 
+    def is_placeholder(widget, placeholder):
+        return widget.get() == placeholder
+
     # Personal info
-    g1 = section("Personal Information")
+    g1 = section("Personal Information", T["accent"])
     name_entry        = fld(g1, "First Name",   0, 0)
     middle_name_entry = fld(g1, "Middle Name",  0, 1)
     last_name_entry   = fld(g1, "Last Name",    0, 2)
-    gender_var        = StringVar(value="MALE")
-    fld(g1, "Gender",       1, 0, combo_var=gender_var, combo_vals=["MALE", "FEMALE"])
-    civil_status_var  = StringVar(value="SINGLE")
+
+    gender_var = StringVar(value="MALE")
+    # Radio buttons for gender
+    Label(g1, text="GENDER", font=FONT["tag"],
+          bg=T["panel"], fg=T["muted"]).grid(
+        row=2, column=0, sticky=W, pady=(10, 3))
+    gender_frame = Frame(g1, bg=T["panel"])
+    gender_frame.grid(row=3, column=0, sticky=W, padx=(0, 16))
+    for opt in ["MALE", "FEMALE"]:
+        Radiobutton(gender_frame, text=opt, variable=gender_var, value=opt,
+                    font=FONT["body"], bg=T["panel"], fg=T["text"],
+                    activebackground=T["panel"], activeforeground=T["accent"],
+                    selectcolor=T["accent_lt"],
+                    cursor="hand2").pack(side=LEFT, padx=(0, 12))
+
+    civil_status_var = StringVar(value="SINGLE")
     fld(g1, "Civil Status", 1, 1, combo_var=civil_status_var,
         combo_vals=["SINGLE", "MARRIED", "WIDOWED", "DIVORCED"])
-    nationality_entry = fld(g1, "Nationality",   1, 2)
+    nationality_entry = fld(g1, "Nationality", 1, 2)
     nationality_entry.insert(0, "FILIPINO")
-    birth_date_entry  = fld(g1, "Birth Date",   2, 0, date=True)
-    birth_place_entry = fld(g1, "Birth Place",  2, 1)
-    birth_place_entry.insert(0, "CATANAUAN")
+
+    birth_date_entry  = fld(g1, "Birth Date",  2, 0, date=True)
+    birth_place_entry = fld(g1, "Birth Place", 2, 1,
+                            placeholder="e.g. CATANAUAN")
 
     # Contact info
     g2 = section("Contact Information")
