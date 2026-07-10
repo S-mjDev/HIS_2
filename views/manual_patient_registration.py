@@ -171,7 +171,7 @@ def build_manual_registration_page(parent, user_data, page_refreshers):
     birth_place_entry.insert(0, "CATANAUAN")
 
     # Contact info
-    g2 = section_card("Contact Information")
+    g2 = section_card("Contact Information","#7c3aed")
     phone_entry       = fld(g2, "Phone Number",      0, 0)
     email_entry       = fld(g2, "Email Address",     0, 1)
     barangay_entry    = fld(g2, "Barangay",          0, 2)

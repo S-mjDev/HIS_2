@@ -125,18 +125,49 @@ def build_er_report_page(parent, page_refreshers=None):
     Label(fb, text="Exports ER-registered patients only.", font=FONT["body"],
           bg=T["panel"], fg=T["muted"]).grid(row=1, column=0, columnspan=4,
                                               sticky=W, pady=(4, 12))
+    try:
+        from tkcalendar import DateEntry as _DateEntry
+        _HAS_CAL = True
+    except ImportError:
+        _HAS_CAL = False
+
     Label(fb, text="START DATE", font=FONT["tag"],
-          bg=T["panel"], fg=T["muted"]).grid(row=2, column=0, sticky=W, pady=(0, 4))
-    from_entry = mk_entry(fb, width=18)
-    from_entry.grid(row=3, column=0, sticky=W)
+        bg=T["panel"], fg=T["muted"]).grid(row=2, column=0, sticky=W, pady=(0, 4))
+
+    if _HAS_CAL:
+        from_entry = _DateEntry(fb, width=16, date_pattern="mm-dd-yyyy",
+                                font=FONT["body"],
+                                background=T["accent"], foreground=T["white"],
+                                headersbackground=T["accent"],
+                                selectbackground=T["accent"],
+                                normalforeground=T["text"],
+                                weekendforeground=T["danger"],
+                                borderwidth=1)
+        from_entry.grid(row=3, column=0, sticky=W, ipady=4)
+    else:
+        from_entry = mk_entry(fb, width=18)
+        from_entry.grid(row=3, column=0, sticky=W)
+
     Label(fb, text="END DATE", font=FONT["tag"],
-          bg=T["panel"], fg=T["muted"]).grid(row=2, column=1, sticky=W,
-                                              pady=(0, 4), padx=(24, 0))
-    to_entry = mk_entry(fb, width=18)
-    to_entry.grid(row=3, column=1, sticky=W, padx=(24, 0))
-    Label(fb, text="Format: MM-DD-YYYY or YYYY-MM-DD", font=FONT["small"],
-          bg=T["panel"], fg=T["muted"]).grid(row=4, column=0, columnspan=3,
-                                              sticky=W, pady=(6, 0))
+        bg=T["panel"], fg=T["muted"]).grid(row=2, column=1, sticky=W,
+                                            pady=(0, 4), padx=(24, 0))
+    if _HAS_CAL:
+        to_entry = _DateEntry(fb, width=16, date_pattern="mm-dd-yyyy",
+                            font=FONT["body"],
+                            background=T["accent"], foreground=T["white"],
+                            headersbackground=T["accent"],
+                            selectbackground=T["accent"],
+                            normalforeground=T["text"],
+                            weekendforeground=T["danger"],
+                            borderwidth=1)
+        to_entry.grid(row=3, column=1, sticky=W, padx=(24, 0), ipady=4)
+    else:
+        to_entry = mk_entry(fb, width=18)
+        to_entry.grid(row=3, column=1, sticky=W, padx=(24, 0))
+
+    Label(fb, text="Click the calendar icon to pick a date",
+        font=FONT["small"], bg=T["panel"],
+        fg=T["muted"]).grid(row=4, column=0, columnspan=3, sticky=W, pady=(6, 0))
 
     if openpyxl is None:
         Label(content, text="⚠  openpyxl is required.  Run: pip install openpyxl",
@@ -152,21 +183,18 @@ def build_er_report_page(parent, page_refreshers=None):
         end_raw    = to_entry.get().strip()
         start_date = end_date = None
 
-        if start_raw:
-            if not validate_date(start_raw):
-                messagebox.showerror("Invalid Date",
-                    "Start date must be MM-DD-YYYY or YYYY-MM-DD.")
-                return
-            start_date = _normalize_date(start_raw)
-        if end_raw:
-            if not validate_date(end_raw):
-                messagebox.showerror("Invalid Date",
-                    "End date must be MM-DD-YYYY or YYYY-MM-DD.")
-                return
-            end_date = _normalize_date(end_raw)
-        if start_date and end_date and start_date > end_date:
-            messagebox.showerror("Invalid Range", "Start date cannot be after end date.")
-            return
+        # For DateEntry, get_date() returns a datetime.date object directly
+        if hasattr(from_entry, "get_date") and from_entry.get().strip():
+            start_date = from_entry.get_date().strftime("%Y-%m-%d")
+            start_raw  = start_date
+        else:
+            start_raw  = from_entry.get().strip()
+
+        if hasattr(to_entry, "get_date") and to_entry.get().strip():
+            end_date = to_entry.get_date().strftime("%Y-%m-%d")
+            end_raw  = end_date
+        else:
+            end_raw = to_entry.get().strip()
 
         patients = db_container["instance"].get_patients(
             er_only=True, start_date=start_date, end_date=end_date)

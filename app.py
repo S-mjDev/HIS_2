@@ -271,6 +271,17 @@ def create_main_application(user_data):
     nav_btn("Exit Application", "⏻", window.quit, danger=True)
     Frame(sidebar, bg=T["sidebar"], height=8).pack(fill=X)
 
+        # Add a watermark below the exit button:
+    Frame(sidebar, bg=T["sidebar"], height=8).pack(fill=X)
+    Label(sidebar,
+        text="© 2026 Surio / QPHN - Bonpen",
+        font=("Calibri", 7), bg=T["sidebar"],
+        fg="#2a3f5c").pack(pady=(0, 6))
+    Label(sidebar,
+        text="v1.0.0",
+        font=("Calibri", 7), bg=T["sidebar"],
+        fg="#2a3f5c").pack(pady=(0, 8))
+    
     # ── Content area ──────────────────────────────────────
     content = Frame(body, bg=T["bg"])
     content.pack(side=LEFT, fill=BOTH, expand=True)
