@@ -177,12 +177,13 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     age_entry          = fld(g1, "Age",             2, 2)
 
 
-    g2 = section("Contact Information")
+    g2 = section("Contact Information","#7c3aed")
     phone_entry       = fld(g2, "Phone Number",      0, 0)
     email_entry       = fld(g2, "Email Address",     0, 1)
     barangay_entry    = fld(g2, "Barangay",          0, 2)
     municipality_entry= fld(g2, "Municipality",      1, 0)
     province_entry    = fld(g2, "Province",          1, 1)
+    province_entry.insert(0, "QUEZON")
     emergency_entry   = fld(g2, "Emergency Contact", 1, 2)
 
     g3 = section("ER Details", T["danger"])
@@ -202,7 +203,7 @@ def build_er_patient_registration_page(parent, user_data, page_refreshers):
     arrival_time_entry.bind("<FocusOut>", on_focus_out)
     diagnosis_entry    = fld(g3, "Diagnosis",       0, 1, span=2)
     type_of_service_var = StringVar(value="MEDICINE")
-    service_type_entry = fld(g3, "Type of Service", 1, 0, combo_var=type_of_service_var, combo_vals=["MEDICINE", "SURGICAL", "OB-GYNE", "PEDIATRICS", "OTHERS"])    
+    service_type_entry = fld(g3, "Type of Service", 1, 0, combo_var=type_of_service_var, combo_vals=["MEDICINE", "SURGICAL", "OB-GYNE", "PEDIATRICS", "OTHERS"])
     referred_to_entry  = fld(g3, "Referral To",     1, 1)
     seen_by_entry      = fld(g3, "Seen by Doctor",   1, 2)
     time_if_admit_entry= fld(g3, "Time if Admit",   2, 0)

@@ -113,6 +113,9 @@ def create_login_window(on_login_success):
     login_window.bind("<Return>", lambda e: login())
 
     Label(card, text="Secure  ·  Role-Based Access Control",
-          font=FONT["small"], bg=T["panel"], fg=T["border2"]).pack(side=BOTTOM, pady=18)
+        font=FONT["small"], bg=T["panel"], fg=T["border2"]).pack(side=BOTTOM, pady=(0, 8))
+
+    Label(card, text="Developed by  Surio / OPD Staff  ·  2026",
+        font=FONT["small"], bg=T["panel"], fg=T["border2"]).pack(side=BOTTOM, pady=(0, 4))
 
     login_window.mainloop()

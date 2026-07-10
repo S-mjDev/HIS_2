@@ -1,5 +1,9 @@
 {
   "barangay": [
+    "10",
+    "BUTANYOG",
+    "BAGUPAYE",
+    "tagabas ibaba",
     "milagrosa",
     "madulao",
     "8",
@@ -15,35 +19,32 @@
     "7",
     "tagbacan ibaba",
     "2",
-    "TUHIAN",
-    "CAMBUGA",
-    "4",
-    "madulao",
-    "8"
+    "TUHIAN"
   ],
   "municipality": [
-    "CATANAUAN",
-    "general luna",
-    "CATANAUAN",
-    "MULANAY",
-    "CATANAUAN",
-    "mulanay",
-    "CATANAUAN",
-    "MULANAY",
-    "CATANAUAN",
-    "mulanay",
-    "CATANAUAN",
-    "general luna",
-    "CATANAUAN",
-    "cat",
-    "CATANAUAN",
-    "cat",
-    "CATANAUAN",
     "catanauan",
+    "MULANAY",
     "CATANAUAN",
-    "rwe"
+    "general luna",
+    "CATANAUAN",
+    "MULANAY",
+    "CATANAUAN",
+    "mulanay",
+    "CATANAUAN",
+    "MULANAY",
+    "CATANAUAN",
+    "mulanay",
+    "CATANAUAN",
+    "general luna",
+    "CATANAUAN",
+    "cat",
+    "CATANAUAN",
+    "cat",
+    "CATANAUAN",
+    "catanauan"
   ],
   "province": [
+    "quezon",
     "QUEZON",
     "que",
     "QUEZON",
@@ -64,6 +65,10 @@
     "QUEZON"
   ],
   "birth_place": [
+    "catanauan",
+    "SAN NARCISO",
+    "CAM SUR",
+    "catanauan",
     "masbate",
     "catanauan",
     "pagbilao",
@@ -79,11 +84,7 @@
     "CALOOCAN",
     "PALAWAN",
     "catanauan",
-    "CATANAUAN",
-    "LAGUNA",
-    "catanauan",
-    "CATANAUAN",
-    "san narciso"
+    "CATANAUAN"
   ],
   "nationality": [
     "FILIPINO"

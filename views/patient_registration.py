@@ -72,6 +72,17 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
                              highlightthickness=1, highlightbackground=T["accent"])
     patient_id_label.pack(side=LEFT)
 
+    reg_frame = Frame(id_inner, bg=T["panel"])
+    reg_frame.pack(side=RIGHT)
+    Label(reg_frame, text="REGISTERED BY", font=FONT["tag"],
+          bg=T["panel"], fg=T["muted"]).pack(anchor=E)
+    Label(reg_frame,
+          text=(user_data.get("username") or "").upper(),
+          font=FONT["body_b"], bg=T["panel"], fg=T["text"]).pack(anchor=E)
+    Label(reg_frame,
+          text=datetime.now().strftime("%B %d, %Y"),
+          font=FONT["small"], bg=T["panel"], fg=T["muted"]).pack(anchor=E)    
+
     def section(title, color=None):
         c = Frame(outer, bg=T["panel"],
                   highlightthickness=1, highlightbackground=T["border"])
@@ -162,11 +173,11 @@ def build_patient_registration_page(parent, user_data, page_refreshers):
     nationality_entry.insert(0, "FILIPINO")
 
     birth_date_entry  = fld(g1, "Birth Date",  2, 0, date=True)
-    birth_place_entry = fld(g1, "Birth Place", 2, 1,
-                            placeholder="e.g. CATANAUAN")
+    birth_place_entry = fld(g1, "Birth Place", 2, 1)
+    birth_place_entry.insert(0, "CATANAUAN")  # Default value
 
     # Contact info
-    g2 = section("Contact Information")
+    g2 = section("Contact Information","#7c3aed")
     phone_entry       = fld(g2, "Phone Number",      0, 0)
     email_entry       = fld(g2, "Email Address",     0, 1)
     barangay_entry    = fld(g2, "Barangay",          0, 2)
