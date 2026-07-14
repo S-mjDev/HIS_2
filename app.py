@@ -4,6 +4,7 @@ from tkinter import *
 from utils.theme import T, FONT, apply_styles
 from models.user_database import UserDatabase
 from views.dashboard import build_dashboard_page
+from views.inpatient_registration import build_inpatient_registration_page
 from views.user_registration import build_user_registration_page
 from views.user_management import build_user_management_page
 from views.patient_registration import build_patient_registration_page
@@ -95,6 +96,12 @@ def open_search_patient():
     r = page_refreshers.get("search_patient")
     if r:
         r()
+
+def open_inpatient_registration(user_data):
+    if 'inpatient_registration' not in pages:
+        pages['inpatient_registration'] = build_inpatient_registration_page(
+            page_container, user_data, page_refreshers)
+    show_page('inpatient_registration')        
 
 def open_user_registration():
     if 'user_registration' not in pages:
@@ -258,6 +265,7 @@ def create_main_application(user_data):
     nav_btn("Out-Patient Registration", "＋", lambda: open_patient_registration(user_data))
     nav_btn("ER Patient Registration", "＋", lambda: open_er_patient_registration(user_data))
     nav_btn("Search Patient",       "⌕", open_search_patient)
+    nav_btn("In-Patient",            "🛏", lambda: open_inpatient_registration(user_data))
 
     if user_data.get("role") == "Administrator":
         nav_btn("Administration", "", None, section=True)
