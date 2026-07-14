@@ -202,6 +202,8 @@ def build_er_report_page(parent, page_refreshers=None):
             messagebox.showinfo("No Data",
                 "No ER patient records found for the selected range.")
             return
+        
+        admissions = db_container["instance"].get_all_admissions( start_date=start_date, end_date=end_date)
 
         file_path = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
@@ -418,10 +420,247 @@ def build_er_report_page(parent, page_refreshers=None):
             ws.protection.sort                = True   # block sorting
             ws.protection.autoFilter          = False   # block filter changes
 
+            # ══════════════════════════════════════════════
+            # SHEET 2 — DISCHARGE TURNAROUND TIME (TAT)
+            # ══════════════════════════════════════════════
+            ws2 = wb.create_sheet(title="Discharge TAT")
+
+            for row_idx, admission in enumerate(admissions.values(),
+                                              start=header_row + 1):
+                is_even  = (row_idx - header_row) % 2 == 0
+                row_fill = _fill(XL_ROW_EVEN if is_even else XL_ROW_ODD)
+
+
+            # Only include patients with disposition = DISCHARGED
+            # and who have time_if_admit (doctor's discharge order time)
+            discharged = [
+                admission.get("admission_id") for admission in admissions.values()
+            ]
+
+            # ── Title block ───────────────────────────────
+            TAT_COLS = 6
+            TAT_LAST = get_column_letter(TAT_COLS)
+
+            ws2.merge_cells(f"A1:{TAT_LAST}1")
+            ws2["A1"].value     = "HOSPITAL INFORMATION SYSTEM"
+            ws2["A1"].font      = _font(bold=True, color=XL_WHITE, size=14)
+            ws2["A1"].fill      = _fill(XL_SIDEBAR)
+            ws2["A1"].alignment = _align("center")
+
+            ws2.merge_cells(f"A2:{TAT_LAST}2")
+            ws2["A2"].value     = f"DISCHARGE TURNAROUND TIME (TAT) REPORT{date_label}"
+            ws2["A2"].font      = _font(bold=True, color=XL_WHITE, size=11)
+            ws2["A2"].fill      = _fill("FFEA580C")   # orange header
+            ws2["A2"].alignment = _align("center")
+
+            ws2.merge_cells(f"A3:{TAT_LAST}3")
+            ws2["A3"].value = (
+                f"Generated: {datetime.now().strftime('%B %d, %Y  %I:%M %p')}"
+                f"  |  Total Discharged: {len(discharged)}"
+                f"  |  TAT = Time of Actual Discharge − Time of Dr's Order"
+            )
+            ws2["A3"].font      = _font(italic=True, color=XL_MUTED, size=9)
+            ws2["A3"].fill      = _fill(XL_HEADING_BG)
+            ws2["A3"].alignment = _align("center")
+
+            ws2.row_dimensions[1].height = 26
+            ws2.row_dimensions[2].height = 22
+            ws2.row_dimensions[3].height = 16
+            ws2.append([])   # blank row 4
+
+            # ── Column headers (row 5) ────────────────────
+            tat_headers = [
+                ("Date of Discharge",               18),
+                ("Patient Name",                    28),
+                ("Time of Discharge (Dr's Orders)", 28),
+                ("Time of Actual Discharge",        28),
+                ("Remarks",                         30),
+                ("TAT",                             14),
+            ]
+
+            tat_header_row = 5
+            for col_idx, (label, width) in enumerate(tat_headers, start=1):
+                cell           = ws2.cell(row=tat_header_row, column=col_idx, value=label)
+                cell.font      = _font(bold=True, color=XL_WHITE, size=9)
+                cell.fill      = _fill("FFEA580C")   # orange
+                cell.alignment = _align("center", wrap=True)
+                cell.border    = _border("FFD4520A")
+                ws2.column_dimensions[get_column_letter(col_idx)].width = width
+
+            ws2.row_dimensions[tat_header_row].height = 28
+
+            def _parse_time(time_str):
+                """Parse time string, return datetime or None."""
+                if not time_str:
+                    return None
+                ts = str(time_str).strip().upper()
+                for fmt in ["%I:%M %p", "%H:%M:%S", "%H:%M"]:
+                    try:
+                        return datetime.strptime(ts, fmt)
+                    except ValueError:
+                        continue
+                return None
+
+            def _compute_tat(dr_order_time_str, actual_discharge_str):
+                """
+                Compute TAT = actual_discharge - dr_order_time.
+                Returns formatted string like '+01:30:00' or '-00:20:00'.
+                Negative TAT means patient left before the order was written (data issue).
+                """
+                t1 = _parse_time(dr_order_time_str)
+                t2 = _parse_time(actual_discharge_str)
+                if not t1 or not t2:
+                    return "—"
+                try:
+                    # Use today's date as base since only time is stored
+                    base = datetime.today().replace(
+                        hour=0, minute=0, second=0, microsecond=0)
+                    dt1 = base.replace(hour=t1.hour, minute=t1.minute, second=t1.second)
+                    dt2 = base.replace(hour=t2.hour, minute=t2.minute, second=t2.second)
+                    delta = dt2 - dt1
+                    total_seconds = int(delta.total_seconds())
+                    sign   = "-" if total_seconds < 0 else ""
+                    total_seconds = abs(total_seconds)
+                    hours  = total_seconds // 3600
+                    minutes= (total_seconds % 3600) // 60
+                    seconds= total_seconds % 60
+                    return f"{sign}{hours:02d}:{minutes:02d}:{seconds:02d}"
+                except Exception:
+                    return "—"
+
+            def _tat_color(tat_str):
+                """Color TAT cell: green ≤30min, orange ≤60min, red >60min, grey if N/A."""
+                if not tat_str or tat_str == "—":
+                    return XL_MUTED
+                try:
+                    negative = tat_str.startswith("-")
+                    clean    = tat_str.lstrip("-")
+                    parts    = clean.split(":")
+                    total_min = int(parts[0]) * 60 + int(parts[1])
+                    if negative:
+                        return "FF7C3AED"   # purple — negative TAT (unusual)
+                    elif total_min <= 30:
+                        return XL_SUCCESS   # green — fast
+                    elif total_min <= 60:
+                        return XL_WARNING   # orange — acceptable
+                    else:
+                        return XL_DANGER    # red — slow
+                except Exception:
+                    return XL_MUTED
+
+            # ── Data rows ─────────────────────────────────
+            for row_idx, (pid, a) in enumerate(
+                    admissions.items(), start=tat_header_row + 1):
+
+                is_even  = (row_idx - tat_header_row) % 2 == 0
+                row_fill = _fill(XL_ROW_EVEN if is_even else XL_ROW_ODD)
+
+                full_name = " ".join(filter(None, [
+                    a.get("first_name", ""),
+                    a.get("middle_name", ""),
+                    a.get("last_name", "")
+                ])).title()
+
+                # Date of discharge = registration_date date part
+                reg_date = a.get("discharge_date", "")
+                dis_date = str(reg_date)[:10] if reg_date else ""
+
+                # Dr's order time = time_of_discharge_dr_order field
+                dr_order_time   = a.get("time_of_discharged_dr_order", "")
+                dr_order_time_str = str(dr_order_time)[11:19] if dr_order_time else ""
+                dr_order_time   = dr_order_time_str if dr_order_time_str else ""
+                # Actual discharge = arrival_time used as proxy
+                # (update this if you add a separate actual_discharge_time field)
+                dr_remarks = a.get("remarks", "") or ""
+                actual_dis_time = a.get("discharge_date", "")
+                dis_time_str = str(actual_dis_time)[11:19] if actual_dis_time else ""
+                actual_dis_time = dis_time_str if dis_time_str else ""
+
+                tat_str   = _compute_tat(dr_order_time, actual_dis_time)
+                tat_color = _tat_color(tat_str)
+
+                row_data = [
+                    dis_date,
+                    full_name,
+                    dr_order_time,
+                    actual_dis_time,
+                    dr_remarks,
+                    a.get("medical_history", "") or a.get("referred_to", "") or "",
+                    tat_str,
+                ]
+
+                for col_idx, value in enumerate(row_data, start=1):
+                    cell           = ws2.cell(row=row_idx, column=col_idx, value=value)
+                    cell.fill      = row_fill
+                    cell.border    = _border()
+                    cell.font      = _font(size=9)
+                    cell.alignment = _align(
+                        "left" if col_idx in (2, 5) else "center",
+                        wrap=col_idx == 5
+                    )
+
+                    # TAT column — colour by duration
+                    if col_idx == 6:
+                        cell.font = _font(bold=True, color=tat_color, size=9)
+
+                ws2.row_dimensions[row_idx].height = 16
+
+            # ── Auto-fit ──────────────────────────────────
+            for col_idx, (label, min_w) in enumerate(tat_headers, start=1):
+                col_letter = get_column_letter(col_idx)
+                max_len    = len(label)
+                for r in range(tat_header_row + 1,
+                               tat_header_row + len(admissions) + 1):
+                    val = ws2.cell(row=r, column=col_idx).value
+                    if val:
+                        max_len = max(max_len, len(str(val)))
+                ws2.column_dimensions[col_letter].width = max(
+                    min(max_len + 4, 50), min_w)
+
+            # ── Legend footer ─────────────────────────────
+            tat_footer_row = tat_header_row + len(discharged) + 2
+            ws2.merge_cells(
+                f"A{tat_footer_row}:{TAT_LAST}{tat_footer_row}")
+            tf                = ws2[f"A{tat_footer_row}"]
+            tf.value          = (
+                "TAT LEGEND:  "
+                "🟢 GREEN = ≤ 30 minutes (Fast)  |  "
+                "🟡 ORANGE = 31–60 minutes (Acceptable)  |  "
+                "🔴 RED = > 60 minutes (Slow)  |  "
+                "🟣 PURPLE = Negative TAT (check data)"
+            )
+            tf.font           = _font(italic=True, color=XL_MUTED, size=8)
+            tf.fill           = _fill(XL_HEADING_BG)
+            tf.alignment      = _align("center")
+            tf.border         = _border()
+
+            # ── Freeze & filter ───────────────────────────
+            ws2.freeze_panes    = "A6"
+            ws2.auto_filter.ref = f"A{tat_header_row}:{TAT_LAST}{tat_header_row}"
+
+            # ── Sheet protection ──────────────────────────
+            for sheet in [ws, ws2]:
+                sheet.protection.sheet               = True
+                sheet.protection.password            = "qphn2025"
+                sheet.protection.selectLockedCells   = False
+                sheet.protection.selectUnlockedCells = False
+                sheet.protection.formatCells         = True
+                sheet.protection.insertRows          = True
+                sheet.protection.deleteRows          = True
+                sheet.protection.sort                = True
+                sheet.protection.autoFilter          = False
+
+            # ── Print settings ────────────────────────────
+            ws2.page_setup.orientation = "landscape"
+            ws2.page_setup.fitToPage   = True
+            ws2.page_setup.fitToWidth  = 1
+            ws2.page_setup.fitToHeight = 0
+
             wb.save(file_path)
             messagebox.showinfo("Export Complete",
                 f"ER report saved to:\n{file_path}\n\n"
-                f"{len(patients)} record(s) exported.")
+                f"Sheet 1 — ER Patient Report:     {len(patients)} record(s)\n"
+                f"Sheet 2 — Discharge TAT Report:  {len(discharged)} discharged")
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export report:\n{e}")

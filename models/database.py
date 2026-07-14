@@ -154,11 +154,85 @@ class DatabaseConnection:
             registration_date DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """
+        visits_table = """
+        CREATE TABLE IF NOT EXISTS visits (
+
+            visit_id INT AUTO_INCREMENT PRIMARY KEY,
+
+            visit_no VARCHAR(20) UNIQUE,
+
+            patient_id VARCHAR(20),
+
+            visit_type ENUM('OPD','ER','IPD'),
+
+            case_number VARCHAR(20),
+
+            visit_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            arrival_time TIME,
+
+            diagnosis TEXT,
+
+            service_type VARCHAR(100),
+
+            referred_to VARCHAR(100),
+
+            seen_by_doctor VARCHAR(100),
+
+            disposition VARCHAR(50),
+
+            doctor VARCHAR(100),
+
+            registered_by VARCHAR(50),
+
+            FOREIGN KEY(patient_id)
+            REFERENCES patients(patient_id)
+        );
+        """
+        admissions_table = """
+        CREATE TABLE IF NOT EXISTS admissions (
+
+            admission_id INT AUTO_INCREMENT PRIMARY KEY,
+
+            visit_id INT,
+
+            patient_id VARCHAR(20),
+
+            admission_date DATETIME,
+
+            ward VARCHAR(50),
+
+            room_no VARCHAR(20),
+
+            bed_no VARCHAR(20),
+
+            attending_doctor VARCHAR(100),
+
+            status ENUM('ADMITTED','DISCHARGED'),
+
+            discharge_date DATETIME,
+
+            remarks TEXT,
+
+            time_of_discharged_dr_order VARCHAR(50),
+
+            FOREIGN KEY(visit_id)
+            REFERENCES visits(visit_id),
+
+            FOREIGN KEY(patient_id)
+            REFERENCES patients(patient_id)
+        );
+        """
 
         try:
             self.execute_query(users_table)
             self.execute_query(patients_table)
+            self.execute_query(visits_table)
+            self.execute_query(admissions_table)
             self.execute_query(er_visits_table)
+            cursor = self.execute_query("SHOW COLUMNS FROM admissions LIKE 'time_of_discharged_dr_order'")
+            if cursor and not cursor.fetchone():
+                self.execute_query("ALTER TABLE admissions ADD COLUMN time_of_discharged_dr_order VARCHAR(50)")
             cursor = self.execute_query("SHOW COLUMNS FROM patients LIKE 'nationality'")
             if cursor and not cursor.fetchone():
                 self.execute_query("ALTER TABLE patients ADD COLUMN nationality VARCHAR(50)")
