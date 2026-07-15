@@ -11,4 +11,3 @@ pyinstaller
 
 # mysqldump --column-statistics=0 -h 192.168.1.88 -u root -p his_db > his_backup.sql
 
-d833d51

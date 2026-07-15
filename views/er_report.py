@@ -434,8 +434,10 @@ def build_er_report_page(parent, page_refreshers=None):
             # Only include patients with disposition = DISCHARGED
             # and who have time_if_admit (doctor's discharge order time)
             discharged = [
-                admission.get("admission_id") for admission in admissions.values()
-            ]
+            admission.get("admission_id")
+            for admission in admissions.values()
+            if (admission.get("status") or "").upper() == "DISCHARGED"
+        ]
 
             # ── Title block ───────────────────────────────
             TAT_COLS = 6
@@ -549,6 +551,7 @@ def build_er_report_page(parent, page_refreshers=None):
                     return XL_MUTED
 
             # ── Data rows ─────────────────────────────────
+
             for row_idx, (pid, a) in enumerate(
                     admissions.items(), start=tat_header_row + 1):
 
@@ -566,9 +569,7 @@ def build_er_report_page(parent, page_refreshers=None):
                 dis_date = str(reg_date)[:10] if reg_date else ""
 
                 # Dr's order time = time_of_discharge_dr_order field
-                dr_order_time   = a.get("time_of_discharged_dr_order", "")
-                dr_order_time_str = str(dr_order_time)[11:19] if dr_order_time else ""
-                dr_order_time   = dr_order_time_str if dr_order_time_str else ""
+                dr_order_time = a.get("time_of_discharged_dr_order", "") or "—"
                 # Actual discharge = arrival_time used as proxy
                 # (update this if you add a separate actual_discharge_time field)
                 dr_remarks = a.get("remarks", "") or ""
@@ -585,8 +586,7 @@ def build_er_report_page(parent, page_refreshers=None):
                     dr_order_time,
                     actual_dis_time,
                     dr_remarks,
-                    a.get("medical_history", "") or a.get("referred_to", "") or "",
-                    tat_str,
+                    tat_str
                 ]
 
                 for col_idx, value in enumerate(row_data, start=1):
@@ -638,8 +638,220 @@ def build_er_report_page(parent, page_refreshers=None):
             ws2.freeze_panes    = "A6"
             ws2.auto_filter.ref = f"A{tat_header_row}:{TAT_LAST}{tat_header_row}"
 
-            # ── Sheet protection ──────────────────────────
-            for sheet in [ws, ws2]:
+            # ══════════════════════════════════════════════
+            # SHEET 3 — WARD REPORT (per ward like TAT format)
+            # ══════════════════════════════════════════════
+            try:
+                from models.visit_database import VisitDatabase
+                db_vis     = VisitDatabase()
+                all_admissions = db_vis.get_all_admissions()
+            except Exception as ve:
+                print(f"Could not load admissions for ward report: {ve}")
+                all_admissions = {}
+
+            # Define all wards to report on
+            WARDS = [
+                "STATION 1", "STATION 2"
+            ]
+
+            WARD_COLORS = {
+                "STATION 1":      "FF2563EB",  # blue
+                "STATION 2":      "FF7C3AED",  # purple
+            }
+
+            def _make_ward_sheet(ward_name):
+                """Create one worksheet for a specific ward."""
+                safe_title = ward_name[:31]  # Excel sheet name max 31 chars
+                ws_ward = wb.create_sheet(title=safe_title)
+
+                ward_color = WARD_COLORS.get(ward_name, XL_ACCENT)
+                ward_dark  = ward_color[:2] + \
+                    "".join(f"{max(int(ward_color[i:i+2], 16) - 30, 0):02X}"
+                            for i in range(2, 8, 2))
+
+                # Filter admissions for this ward
+                ward_data = {
+                    aid: a for aid, a in all_admissions.items()
+                    if (a.get("ward") or "").upper() == ward_name.upper()
+                }
+
+                W_COLS = 8
+                W_LAST = get_column_letter(W_COLS)
+
+                # ── Title block ───────────────────────────
+                ws_ward.merge_cells(f"A1:{W_LAST}1")
+                ws_ward["A1"].value     = "HOSPITAL INFORMATION SYSTEM"
+                ws_ward["A1"].font      = _font(bold=True, color=XL_WHITE, size=14)
+                ws_ward["A1"].fill      = _fill(XL_SIDEBAR)
+                ws_ward["A1"].alignment = _align("center")
+
+                ws_ward.merge_cells(f"A2:{W_LAST}2")
+                ws_ward["A2"].value     = f"WARD REPORT — {ward_name}{date_label}"
+                ws_ward["A2"].font      = _font(bold=True, color=XL_WHITE, size=11)
+                ws_ward["A2"].fill      = _fill(ward_color)
+                ws_ward["A2"].alignment = _align("center")
+
+                ws_ward.merge_cells(f"A3:{W_LAST}3")
+                ws_ward["A3"].value = (
+                    f"Generated: {datetime.now().strftime('%B %d, %Y  %I:%M %p')}"
+                    f"  |  Ward: {ward_name}"
+                    f"  |  Total Records: {len(ward_data)}"
+                    f"  |  Admitted: {sum(1 for a in ward_data.values() if (a.get('status') or '').upper() == 'ADMITTED')}"
+                    f"  |  Discharged: {sum(1 for a in ward_data.values() if (a.get('status') or '').upper() == 'DISCHARGED')}"
+                )
+                ws_ward["A3"].font      = _font(italic=True, color=XL_MUTED, size=9)
+                ws_ward["A3"].fill      = _fill(XL_HEADING_BG)
+                ws_ward["A3"].alignment = _align("center")
+
+                ws_ward.row_dimensions[1].height = 26
+                ws_ward.row_dimensions[2].height = 22
+                ws_ward.row_dimensions[3].height = 16
+                ws_ward.append([])  # blank row 4
+
+                # ── Column headers (row 5) ─────────────────
+                ward_headers = [
+                    ("Date of Admission",             18),
+                    ("Patient Name",                  28),
+                    ("Room / Bed",                    12),
+                    ("Attending Doctor",              24),
+                    ("Dr's Discharge Order Time",     24),
+                    ("Actual Discharge Time",         22),
+                    ("Status",                        12),
+                    ("TAT / Remarks",                 22),
+                ]
+
+                w_header_row = 5
+                for col_idx, (label, width) in enumerate(ward_headers, start=1):
+                    cell           = ws_ward.cell(row=w_header_row, column=col_idx, value=label)
+                    cell.font      = _font(bold=True, color=XL_WHITE, size=9)
+                    cell.fill      = _fill(ward_color)
+                    cell.alignment = _align("center", wrap=True)
+                    cell.border    = _border(ward_dark)
+                    ws_ward.column_dimensions[get_column_letter(col_idx)].width = width
+
+                ws_ward.row_dimensions[w_header_row].height = 28
+
+                # ── Data rows ──────────────────────────────
+                if not ward_data:
+                    empty_row = w_header_row + 1
+                    ws_ward.merge_cells(f"A{empty_row}:{W_LAST}{empty_row}")
+                    ec = ws_ward[f"A{empty_row}"]
+                    ec.value     = f"No records found for {ward_name}"
+                    ec.font      = _font(italic=True, color=XL_MUTED, size=9)
+                    ec.alignment = _align("center")
+                    ec.fill      = _fill(XL_ROW_EVEN)
+                else:
+
+                    for row_idx, (aid, a) in enumerate(
+                            ward_data.items(), start=w_header_row + 1):
+
+                        is_even  = (row_idx - w_header_row) % 2 == 0
+                        row_fill = _fill(XL_ROW_EVEN if is_even else XL_ROW_ODD)
+
+                        status = (a.get("status") or "").upper()
+
+                        full_name = " ".join(filter(None, [
+                            a.get("first_name", ""),
+                            a.get("middle_name", ""),
+                            a.get("last_name", "")
+                        ])).title()
+
+                        room_bed = "/".join(filter(None, [
+                            a.get("room_no", ""), a.get("bed_no", "")
+                        ])) or "—"
+
+                        dr_order_time = a.get("time_of_discharged_dr_order", "") or "—"
+                        actual_dis_time = a.get("discharge_date", "")
+                        dis_time_str = str(actual_dis_time)[11:19] if actual_dis_time else ""
+                        actual_dis_time = dis_time_str if dis_time_str else ""
+
+                        # Compute TAT for discharged patients
+                        tat_str = "—"
+                        if status == "DISCHARGED" and dr_order_time != "—" and actual_dis_time != "—":
+                            tat_str = _compute_tat(dr_order_time, actual_dis_time)
+            
+                        row_data = [
+                            str(a.get("admission_date", ""))[:10],
+                            full_name,
+                            room_bed,
+                            a.get("attending_doctor", ""),
+                            dr_order_time,
+                            actual_dis_time,
+                            status,
+                            tat_str if status == "DISCHARGED" else a.get("remarks", ""),
+                        ]
+
+                        for col_idx, value in enumerate(row_data, start=1):
+                            cell           = ws_ward.cell(
+                                row=row_idx, column=col_idx, value=value)
+                            cell.fill      = row_fill
+                            cell.border    = _border()
+                            cell.font      = _font(size=9)
+                            cell.alignment = _align(
+                                "center" if col_idx in (1, 3, 5, 6, 7) else "left")
+
+                            # Status colour
+                            if col_idx == 7:
+                                if status == "ADMITTED":
+                                    cell.fill = _fill("FFD1FAE5")
+                                    cell.font = _font(bold=True, color="FF065F46", size=9)
+                                elif status == "DISCHARGED":
+                                    cell.fill = _fill("FFFEE2E2")
+                                    cell.font = _font(bold=True, color="FFB91C1C", size=9)
+
+                            # TAT colour coding
+                            if col_idx == 8 and status == "DISCHARGED" and tat_str != "—":
+                                cell.font = _font(
+                                    bold=True, color=_tat_color(tat_str), size=9)
+
+                        ws_ward.row_dimensions[row_idx].height = 16
+
+                    # ── Auto-fit ───────────────────────────
+                    for col_idx, (label, min_w) in enumerate(ward_headers, start=1):
+                        col_letter = get_column_letter(col_idx)
+                        max_len    = len(label)
+                        for r in range(w_header_row + 1,
+                                       w_header_row + len(ward_data) + 1):
+                            val = ws_ward.cell(row=r, column=col_idx).value
+                            if val:
+                                max_len = max(max_len, len(str(val)))
+                        ws_ward.column_dimensions[col_letter].width = max(
+                            min(max_len + 4, 50), min_w)
+
+                # ── Summary footer ─────────────────────────
+                footer_row = w_header_row + max(len(ward_data), 1) + 2
+                ws_ward.merge_cells(f"A{footer_row}:{W_LAST}{footer_row}")
+                wf                = ws_ward[f"A{footer_row}"]
+                wf.value          = (
+                    f"END OF REPORT  |  Ward: {ward_name}  |  "
+                    f"Total: {len(ward_data)} record(s)  |  "
+                    f"TAT LEGEND: GREEN ≤30min  ·  ORANGE 31-60min  ·  RED >60min"
+                )
+                wf.font           = _font(italic=True, color=XL_MUTED, size=8)
+                wf.fill           = _fill(XL_HEADING_BG)
+                wf.alignment      = _align("center")
+                wf.border         = _border()
+
+                # ── Freeze & filter ───────────────────────
+                ws_ward.freeze_panes    = "A6"
+                ws_ward.auto_filter.ref = f"A{w_header_row}:{W_LAST}{w_header_row}"
+
+                # ── Print settings ─────────────────────────
+                ws_ward.page_setup.orientation = "landscape"
+                ws_ward.page_setup.fitToPage   = True
+                ws_ward.page_setup.fitToWidth  = 1
+                ws_ward.page_setup.fitToHeight = 0
+
+                return ws_ward
+
+            # Build a sheet for every ward
+            ward_sheets = []
+            for ward in WARDS:
+                ws_w = _make_ward_sheet(ward)
+                ward_sheets.append(ws_w)
+
+            # ── Sheet protection (all sheets) ──────────────
+            for sheet in [ws, ws2] + ward_sheets:
                 sheet.protection.sheet               = True
                 sheet.protection.password            = "qphn2025"
                 sheet.protection.selectLockedCells   = False
@@ -650,17 +862,22 @@ def build_er_report_page(parent, page_refreshers=None):
                 sheet.protection.sort                = True
                 sheet.protection.autoFilter          = False
 
-            # ── Print settings ────────────────────────────
+            # ── Print settings (Sheet 1 & 2) ──────────────
             ws2.page_setup.orientation = "landscape"
             ws2.page_setup.fitToPage   = True
             ws2.page_setup.fitToWidth  = 1
             ws2.page_setup.fitToHeight = 0
 
             wb.save(file_path)
+            ward_counts = ", ".join(
+                f"{w}: {sum(1 for a in all_admissions.values() if (a.get('ward') or '').upper() == w.upper())}"
+                for w in WARDS
+            )
             messagebox.showinfo("Export Complete",
                 f"ER report saved to:\n{file_path}\n\n"
                 f"Sheet 1 — ER Patient Report:     {len(patients)} record(s)\n"
-                f"Sheet 2 — Discharge TAT Report:  {len(discharged)} discharged")
+                f"Sheet 2 — Discharge TAT Report:  {len(discharged)} discharged\n"
+                f"Sheets 3–9 — Ward Reports:       {ward_counts}")
 
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export report:\n{e}")

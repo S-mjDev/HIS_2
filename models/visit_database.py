@@ -201,6 +201,7 @@ class VisitDatabase:
             a.admission_id, a.patient_id, a.admission_date,
             a.ward, a.room_no, a.bed_no, a.attending_doctor,
             a.status, a.discharge_date, a.remarks,
+            a.time_of_discharged_dr_order,
             p.first_name, p.middle_name, p.last_name,
             p.gender, v.visit_no, v.diagnosis
         FROM admissions a
@@ -223,12 +224,19 @@ class VisitDatabase:
                     "status":           row[7] or "",
                     "discharge_date":   str(row[8]) if row[8] else "",
                     "remarks":          row[9] or "",
-                    "first_name":       row[10] or "",
-                    "middle_name":      row[11] or "",
-                    "last_name":        row[12] or "",
-                    "gender":           row[13] or "",
-                    "visit_no":         row[14] or "",
-                    "diagnosis":        row[15] or "",
+
+                    # Correct position
+                    "time_of_discharged_dr_order": str(row[10]) if row[10] else "",
+
+                    # Patient information
+                    "first_name":       row[11] or "",
+                    "middle_name":      row[12] or "",
+                    "last_name":        row[13] or "",
+                    "gender":           row[14] or "",
+
+                    # Visit information
+                    "visit_no":         row[15] or "",
+                    "diagnosis":        row[16] or "",
                 }
         return result
 

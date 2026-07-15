@@ -1,5 +1,6 @@
 {
   "barangay": [
+    "3",
     "9",
     "DOONGAN ILAYA",
     "recto",
@@ -18,10 +19,10 @@
     "8",
     "mss",
     "pacabit",
-    "bacong ilaya",
-    "ILAYANG YUNI"
+    "bacong ilaya"
   ],
   "municipality": [
+    "mulanay",
     "CATANAUAN",
     "general luna",
     "CATANAUAN",
@@ -40,8 +41,7 @@
     "CATANAUAN",
     "mulanay",
     "CATANAUAN",
-    "MULANAY",
-    "CATANAUAN"
+    "MULANAY"
   ],
   "province": [
     "QUEZON",
@@ -66,6 +66,7 @@
     "QUEZON"
   ],
   "birth_place": [
+    "mulanay",
     "CATANAUAN",
     "general luna",
     "catanauan",
@@ -84,8 +85,7 @@
     "SAN NARCISO",
     "CAM SUR",
     "catanauan",
-    "masbate",
-    "catanauan"
+    "masbate"
   ],
   "nationality": [
     "FILIPINO"

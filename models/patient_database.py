@@ -243,7 +243,6 @@ class PatientDatabase:
         }
     
     def _map_admission_row(self, row):
-        """Map a raw admission row tuple into a dictionary."""
         return {
             "admission_id":     row[0],
             "patient_id":       row[1],
@@ -255,15 +254,19 @@ class PatientDatabase:
             "status":           row[7] or "",
             "discharge_date":   str(row[8]) if row[8] else "",
             "remarks":          row[9] or "",
-            "first_name":       row[10] or "",
-            "middle_name":      row[11] or "",
-            "last_name":        row[12] or "",
-            "gender":           row[13] or "",
-            "birth_date":       str(row[14]) if row[14] else "",
-            "phone":            row[15] or "",
-            "time_of_discharged_dr_order": row[16] or "",
-            "discharge_time": row[17] or ""
-        }
+            "time_of_discharged_dr_order": row[10] or "",
+
+            "first_name":       row[11] or "",
+            "middle_name":      row[12] or "",
+            "last_name":        row[13] or "",
+            "gender":           row[14] or "",
+            "birth_date":       str(row[15]) if row[15] else "",
+            "phone":            row[16] or "",
+            "email":            row[17] or "",
+            "barangay":         row[18] or "",
+            "municipality":     row[19] or "",
+            "province":         row[20] or "",
+                    }                                                  
 
     def get_patient(self, patient_id):
         """Get patient by ID."""
@@ -301,12 +304,27 @@ class PatientDatabase:
         """Get all admissions including discharged."""
         query = """
         SELECT
-            a.admission_id, a.patient_id, a.admission_date,
-            a.ward, a.room_no, a.bed_no, a.attending_doctor,
-            a.status, a.discharge_date, a.remarks,
-            p.first_name, p.middle_name, p.last_name,
-            p.gender, p.birth_date, p.phone,
-            p.email, p.barangay, p.municipality, p.province
+            a.admission_id,
+            a.patient_id, 
+            a.admission_date,
+            a.ward, 
+            a.room_no, 
+            a.bed_no, 
+            a.attending_doctor,
+            a.status, 
+            a.discharge_date, 
+            a.remarks,
+            a.time_of_discharged_dr_order,
+            p.first_name, 
+            p.middle_name, 
+            p.last_name,
+            p.gender, 
+            p.birth_date, 
+            p.phone,
+            p.email, 
+            p.barangay, 
+            p.municipality, 
+            p.province
         FROM admissions a
         JOIN patients p ON a.patient_id = p.patient_id
         """
@@ -315,15 +333,16 @@ class PatientDatabase:
         elif start_date:
             query += " WHERE DATE(a.admission_date) >= %s"
         elif end_date:
-            query += " WHERE DATE(a.admission_date) <= %s"
+            query += " WHERE DATE(a.admission_date) <= %s"            
 
         cursor = self.db.execute_query(query, (start_date, end_date) if start_date and end_date else (start_date,) if start_date else (end_date,))
         admissions = {}
+
         if cursor:
             for row in cursor.fetchall():
                 admissions[row[0]] = self._map_admission_row(row)
         return admissions
-
+    
     def get_patients(self, er_only=False, start_date=None, end_date=None):
         """Get patients optionally filtered by ER fields and registration date range."""
         columns = (
