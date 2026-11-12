@@ -29,17 +29,46 @@ class DatabaseConnection:
     """Manages the MySQL database connection and core query execution."""
 
     def __init__(self):
-        self.host = os.getenv("DB_HOST", "192.168.1.88")
+        self.driver = os.getenv("DB_DRIVER", "mysql").strip().lower()
+        self.host = os.getenv("DB_HOST", "192.168.1.15")
+        self.port = int(os.getenv("DB_PORT", "3306"))
         self.database = os.getenv("DB_NAME", "his_db")
         self.user = os.getenv("DB_USER", "root")
         self.password = os.getenv("DB_PASSWORD", "root")
         self.connection = None
 
+    @staticmethod
+    def _odbc_value(value):
+        return "{" + str(value).replace("}", "}}") + "}"
+
     def connect(self):
         """Establish database connection."""
         try:
+            if self.driver == "odbc":
+                import pyodbc
+
+                odbc_driver = os.getenv(
+                    "DB_ODBC_DRIVER", "MySQL ODBC 8.0 Unicode Driver"
+                )
+                connection_string = ";".join((
+                    f"DRIVER={self._odbc_value(odbc_driver)}",
+                    f"SERVER={self._odbc_value(self.host)}",
+                    f"PORT={self.port}",
+                    f"DATABASE={self._odbc_value(self.database)}",
+                    f"UID={self._odbc_value(self.user)}",
+                    f"PWD={self._odbc_value(self.password)}",
+                ))
+                self.connection = pyodbc.connect(
+                    connection_string, timeout=300, autocommit=False
+                )
+                return True
+
+            if self.driver != "mysql":
+                raise ValueError("DB_DRIVER must be either 'mysql' or 'odbc'")
+
             self.connection = mysql.connector.connect(
                 host=self.host,
+                port=self.port,
                 database=self.database,
                 user=self.user,
                 password=self.password,
@@ -48,28 +77,28 @@ class DatabaseConnection:
                 connection_timeout=300,
                 autocommit=False
             )
-            
-            if self.connection.is_connected():
-                return True
-        except Error as e:
-            print(f"Error connecting to MySQL: {e}")
+            return self.connection.is_connected()
+        except Exception as e:
+            print(f"Error connecting to database: {e}")
             return False
 
     def disconnect(self):
         """Close database connection."""
-        if self.connection and self.connection.is_connected():
+        if self.connection:
             self.connection.close()
 
     def execute_query(self, query, params=None):
         """Execute a query and return cursor."""
         try:
             cursor = self.connection.cursor()
+            if self.driver == "odbc":
+                query = query.replace("%s", "?")
             if params:
                 cursor.execute(query, params)
             else:
                 cursor.execute(query)
             return cursor
-        except Error as e:
+        except Exception as e:
             print(f"Error executing query: {e}")
             return None
 

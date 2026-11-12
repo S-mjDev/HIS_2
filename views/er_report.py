@@ -566,7 +566,16 @@ def build_er_report_page(parent, page_refreshers=None):
 
                 # Date of discharge = registration_date date part
                 reg_date = a.get("discharge_date", "")
-                dis_date = str(reg_date)[:10] if reg_date else ""
+                if reg_date:
+                    try:
+                        dis_date = datetime.strptime(
+                            str(reg_date)[:10],
+                            "%Y-%m-%d"
+                        ).strftime("%B %d %Y")
+                    except ValueError:
+                        dis_date = str(reg_date)[:10]
+                else:
+                    dis_date = ""
 
                 # Dr's order time = time_of_discharge_dr_order field
                 dr_order_time = a.get("time_of_discharged_dr_order", "") or "—"
@@ -655,7 +664,7 @@ def build_er_report_page(parent, page_refreshers=None):
             ]
 
             WARD_COLORS = {
-                "STATION 1":      "FF2563EB",  # blue
+                "STATION 1":      "FFDB2777",  # rose
                 "STATION 2":      "FF7C3AED",  # purple
             }
 
@@ -675,7 +684,7 @@ def build_er_report_page(parent, page_refreshers=None):
                     if (a.get("ward") or "").upper() == ward_name.upper()
                 }
 
-                W_COLS = 8
+                W_COLS = 9
                 W_LAST = get_column_letter(W_COLS)
 
                 # ── Title block ───────────────────────────
@@ -710,14 +719,15 @@ def build_er_report_page(parent, page_refreshers=None):
 
                 # ── Column headers (row 5) ─────────────────
                 ward_headers = [
-                    ("Date of Admission",             18),
-                    ("Patient Name",                  28),
-                    ("Room / Bed",                    12),
-                    ("Attending Doctor",              24),
-                    ("Dr's Discharge Order Time",     24),
-                    ("Actual Discharge Time",         22),
-                    ("Status",                        12),
-                    ("TAT / Remarks",                 22),
+                    ("Date of Discharge",                          18),
+                    ("Patient Name",                               28),
+                    ("Room / Bed",                                 12),
+                    ("Attending Doctor",                           24),
+                    ("Time of Discharge(Dr's Order)",              12),
+                    ("Time of Actual Discharge from Ward",         12),
+                    ("Status",                                     12),
+                    ("Remarks ",                                   50),
+                    ("TAT",                                        12)
                 ]
 
                 w_header_row = 5
@@ -765,19 +775,25 @@ def build_er_report_page(parent, page_refreshers=None):
                         dis_time_str = str(actual_dis_time)[11:19] if actual_dis_time else ""
                         actual_dis_time = dis_time_str if dis_time_str else ""
 
+                        dr_remarks = a.get("remarks", "") or "—"
+
                         # Compute TAT for discharged patients
                         tat_str = "—"
                         if status == "DISCHARGED" and dr_order_time != "—" and actual_dis_time != "—":
                             tat_str = _compute_tat(dr_order_time, actual_dis_time)
             
                         row_data = [
-                            str(a.get("admission_date", ""))[:10],
+                            datetime.strptime(
+                                str(a.get("discharge_date", ""))[:10],
+                                "%Y-%m-%d"
+                            ).strftime("%B %d, %Y"),
                             full_name,
                             room_bed,
                             a.get("attending_doctor", ""),
                             dr_order_time,
                             actual_dis_time,
                             status,
+                            dr_remarks,
                             tat_str if status == "DISCHARGED" else a.get("remarks", ""),
                         ]
 
@@ -787,8 +803,10 @@ def build_er_report_page(parent, page_refreshers=None):
                             cell.fill      = row_fill
                             cell.border    = _border()
                             cell.font      = _font(size=9)
-                            cell.alignment = _align(
-                                "center" if col_idx in (1, 3, 5, 6, 7) else "left")
+                            cell.alignment = _align("center")
+                            
+                            if col_idx == 1 and value:
+                                cell.font = _font(bold=True, color=XL_ACCENT, size=9)                            
 
                             # Status colour
                             if col_idx == 7:
@@ -800,7 +818,7 @@ def build_er_report_page(parent, page_refreshers=None):
                                     cell.font = _font(bold=True, color="FFB91C1C", size=9)
 
                             # TAT colour coding
-                            if col_idx == 8 and status == "DISCHARGED" and tat_str != "—":
+                            if col_idx == 9 and status == "DISCHARGED" and tat_str != "—":
                                 cell.font = _font(
                                     bold=True, color=_tat_color(tat_str), size=9)
 

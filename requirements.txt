@@ -1,4 +1,5 @@
 mysql-connector-python
+pyodbc
 tkcalendar
 openpyxl
 et-xmlfile
