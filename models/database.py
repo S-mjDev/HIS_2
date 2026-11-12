@@ -1,10 +1,6 @@
 import os
-import mysql.connector
-from mysql.connector import Error
-
-# FORCE PYINSTALLER TO TRACK THE AUTHENTICATION PLUGINS
-from mysql.connector.plugins import mysql_native_password
-from mysql.connector.plugins import caching_sha2_password
+import pyodbc
+from pyodbc import Error
 
 # Global connection singleton
 _connection_instance = None
@@ -29,7 +25,6 @@ class DatabaseConnection:
     """Manages the MySQL database connection and core query execution."""
 
     def __init__(self):
-        self.driver = os.getenv("DB_DRIVER", "mysql").strip().lower()
         self.host = os.getenv("DB_HOST", "192.168.1.15")
         self.port = int(os.getenv("DB_PORT", "3306"))
         self.database = os.getenv("DB_NAME", "his_db")
@@ -44,40 +39,21 @@ class DatabaseConnection:
     def connect(self):
         """Establish database connection."""
         try:
-            if self.driver == "odbc":
-                import pyodbc
-
-                odbc_driver = os.getenv(
-                    "DB_ODBC_DRIVER", "MySQL ODBC 8.0 Unicode Driver"
-                )
-                connection_string = ";".join((
-                    f"DRIVER={self._odbc_value(odbc_driver)}",
-                    f"SERVER={self._odbc_value(self.host)}",
-                    f"PORT={self.port}",
-                    f"DATABASE={self._odbc_value(self.database)}",
-                    f"UID={self._odbc_value(self.user)}",
-                    f"PWD={self._odbc_value(self.password)}",
-                ))
-                self.connection = pyodbc.connect(
-                    connection_string, timeout=300, autocommit=False
-                )
-                return True
-
-            if self.driver != "mysql":
-                raise ValueError("DB_DRIVER must be either 'mysql' or 'odbc'")
-
-            self.connection = mysql.connector.connect(
-                host=self.host,
-                port=self.port,
-                database=self.database,
-                user=self.user,
-                password=self.password,
-                auth_plugin='mysql_native_password',
-                use_pure=True,
-                connection_timeout=300,
-                autocommit=False
+            odbc_driver = os.getenv(
+                "DB_ODBC_DRIVER", "MySQL ODBC 9.7 Unicode Driver"
             )
-            return self.connection.is_connected()
+            connection_string = ";".join((
+                f"DRIVER={self._odbc_value(odbc_driver)}",
+                f"SERVER={self._odbc_value(self.host)}",
+                f"PORT={self.port}",
+                f"DATABASE={self._odbc_value(self.database)}",
+                f"UID={self._odbc_value(self.user)}",
+                f"PWD={self._odbc_value(self.password)}",
+            ))
+            self.connection = pyodbc.connect(
+                connection_string, timeout=300, autocommit=False
+            )
+            return True
         except Exception as e:
             print(f"Error connecting to database: {e}")
             return False
@@ -91,8 +67,7 @@ class DatabaseConnection:
         """Execute a query and return cursor."""
         try:
             cursor = self.connection.cursor()
-            if self.driver == "odbc":
-                query = query.replace("%s", "?")
+            query = query.replace("%s", "?")
             if params:
                 cursor.execute(query, params)
             else:

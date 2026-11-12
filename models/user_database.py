@@ -1,5 +1,5 @@
 import hashlib
-from mysql.connector import Error
+from pyodbc import Error
 from models.database import get_connection
 
 

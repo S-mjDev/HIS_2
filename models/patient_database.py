@@ -1,7 +1,7 @@
 import os
 import sys
 from datetime import datetime
-from mysql.connector import Error
+from pyodbc import Error
 
 try:
     from models.database import DatabaseConnection
