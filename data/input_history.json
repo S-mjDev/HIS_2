@@ -1,5 +1,9 @@
 {
   "barangay": [
+    "MADULAO",
+    "san antonio pala",
+    "bolo",
+    "3",
     "9",
     "DOONGAN ILAYA",
     "recto",
@@ -15,13 +19,11 @@
     "7",
     "ILAYANG YUNI",
     "TAGBACAN IBABA",
-    "8",
-    "mss",
-    "pacabit",
-    "bacong ilaya",
-    "ILAYANG YUNI"
+    "8"
   ],
   "municipality": [
+    "CATANAUAN",
+    "mulanay",
     "CATANAUAN",
     "general luna",
     "CATANAUAN",
@@ -39,8 +41,6 @@
     "MULANAY",
     "CATANAUAN",
     "mulanay",
-    "CATANAUAN",
-    "MULANAY",
     "CATANAUAN"
   ],
   "province": [
@@ -67,6 +67,10 @@
   ],
   "birth_place": [
     "CATANAUAN",
+    "rizal",
+    "laguna",
+    "mulanay",
+    "CATANAUAN",
     "general luna",
     "catanauan",
     "lucena city",
@@ -81,11 +85,7 @@
     "catanauan",
     "manila",
     "catanauan",
-    "SAN NARCISO",
-    "CAM SUR",
-    "catanauan",
-    "masbate",
-    "catanauan"
+    "SAN NARCISO"
   ],
   "nationality": [
     "FILIPINO"

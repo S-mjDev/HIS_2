@@ -1,10 +1,6 @@
 import os
-import mysql.connector
-from mysql.connector import Error
-
-# FORCE PYINSTALLER TO TRACK THE AUTHENTICATION PLUGINS
-from mysql.connector.plugins import mysql_native_password
-from mysql.connector.plugins import caching_sha2_password
+import pyodbc
+from pyodbc import Error
 
 # Global connection singleton
 _connection_instance = None
@@ -29,47 +25,55 @@ class DatabaseConnection:
     """Manages the MySQL database connection and core query execution."""
 
     def __init__(self):
-        self.host = os.getenv("DB_HOST", "192.168.1.88")
+        self.host = os.getenv("DB_HOST", "192.168.1.15")
+        self.port = int(os.getenv("DB_PORT", "3306"))
         self.database = os.getenv("DB_NAME", "his_db")
         self.user = os.getenv("DB_USER", "root")
         self.password = os.getenv("DB_PASSWORD", "root")
         self.connection = None
 
+    @staticmethod
+    def _odbc_value(value):
+        return "{" + str(value).replace("}", "}}") + "}"
+
     def connect(self):
         """Establish database connection."""
         try:
-            self.connection = mysql.connector.connect(
-                host=self.host,
-                database=self.database,
-                user=self.user,
-                password=self.password,
-                auth_plugin='mysql_native_password',
-                use_pure=True,
-                connection_timeout=300,
-                autocommit=False
+            odbc_driver = os.getenv(
+                "DB_ODBC_DRIVER", "MySQL ODBC 9.7 Unicode Driver"
             )
-            
-            if self.connection.is_connected():
-                return True
-        except Error as e:
-            print(f"Error connecting to MySQL: {e}")
+            connection_string = ";".join((
+                f"DRIVER={self._odbc_value(odbc_driver)}",
+                f"SERVER={self._odbc_value(self.host)}",
+                f"PORT={self.port}",
+                f"DATABASE={self._odbc_value(self.database)}",
+                f"UID={self._odbc_value(self.user)}",
+                f"PWD={self._odbc_value(self.password)}",
+            ))
+            self.connection = pyodbc.connect(
+                connection_string, timeout=300, autocommit=False
+            )
+            return True
+        except Exception as e:
+            print(f"Error connecting to database: {e}")
             return False
 
     def disconnect(self):
         """Close database connection."""
-        if self.connection and self.connection.is_connected():
+        if self.connection:
             self.connection.close()
 
     def execute_query(self, query, params=None):
         """Execute a query and return cursor."""
         try:
             cursor = self.connection.cursor()
+            query = query.replace("%s", "?")
             if params:
                 cursor.execute(query, params)
             else:
                 cursor.execute(query)
             return cursor
-        except Error as e:
+        except Exception as e:
             print(f"Error executing query: {e}")
             return None
 
